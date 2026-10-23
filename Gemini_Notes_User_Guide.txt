@@ -20,8 +20,14 @@ integrated Google Gemini AI assistant.
   npm run dev      (runs with live hot-reloading)
   npm run package:mac (rebuilds the standalone "Gemini Notes.app")
 
-• GitHub Repository:
+• GitHub Repository & Branch Workflow (test -> main):
   https://github.com/VincentMoses123/gemini-notes
+  - "test" branch (Staging / Testing): All new features, experiments, and code
+    changes are developed, committed, and pushed to "origin/test" first so you
+    can test them safely without affecting your stable production app.
+  - "main" branch (Production): Once changes on "test" are verified, "test" is
+    merged into "main", pushed to "origin/main", and packaged into your
+    production "Desktop/Gemini Notes.app".
 
 --------------------------------------------------------------------------------
 2. INITIAL SETUP (GEMINI API KEY)

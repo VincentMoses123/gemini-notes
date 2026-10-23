@@ -51,3 +51,13 @@ npm run package:mac
 ```
 
 Outputs a signed standalone application bundle at `release/Gemini Notes.app`.
+
+## Git Branching & Release Workflow (`test` → `main`)
+
+This repository uses a two-stage **Test → Production** branching workflow:
+
+| Branch | Role | Workflow |
+| --- | --- | --- |
+| `test` | **Staging / Testing (Default Working Branch)** | All new features, bug fixes, and UI changes are developed, committed, and pushed to `origin/test` first. Test builds are verified via `npm start` or `release/Gemini Notes.app`. |
+| `main` | **Production** | Stable, verified production branch. Only merge `test` into `main` (`git checkout main && git merge test && git push origin main`) and update `Desktop/Gemini Notes.app` after explicit verification. |
+
