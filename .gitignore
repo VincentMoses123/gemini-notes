@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Build & Packaged App Outputs
+dist/
+release/
+
+# Local Environment & Secrets
+.env
+.env.*
+*.local
+
+# macOS & Editor files
+.DS_Store
+*.log
