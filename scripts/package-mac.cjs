@@ -1,6 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
 const { execFileSync } = require('child_process');
 
 const rootDir = path.resolve(__dirname, '..');
@@ -13,7 +12,7 @@ const electronAppSrc = path.join(
 );
 const releaseDir = path.join(rootDir, 'release');
 const targetAppPath = path.join(releaseDir, 'Gemini Notes.app');
-const tempAppPath = path.join(os.tmpdir(), 'Gemini Notes.app');
+const tempAppPath = '/tmp/Gemini Notes.app';
 
 if (!fs.existsSync(electronAppSrc)) {
   console.error('Could not find Electron.app at:', electronAppSrc);
@@ -88,10 +87,11 @@ try {
   console.warn('Warning updating Info.plist:', err.message);
 }
 
-// 5. Strip extended attributes and ad-hoc codesign in /tmp, then copy to release/
+// 5. Strip extended attributes, ad-hoc codesign in /tmp, copy via ditto --norsrc, and verify
 execFileSync('xattr', ['-cr', tempAppPath]);
 execFileSync('codesign', ['--force', '--deep', '--sign', '-', tempAppPath]);
-execFileSync('cp', ['-R', tempAppPath, targetAppPath]);
+execFileSync('ditto', ['--norsrc', tempAppPath, targetAppPath]);
+execFileSync('codesign', ['--verify', targetAppPath]);
 fs.rmSync(tempAppPath, { recursive: true, force: true });
 
-console.log(`\n✅ Standalone app created and signed at:\n   ${targetAppPath}`);
+console.log(`\n✅ Standalone app created, signed, and verified at:\n   ${targetAppPath}`);

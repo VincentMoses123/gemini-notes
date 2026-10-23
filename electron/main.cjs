@@ -2,6 +2,8 @@ const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
+app.setName('Gemini Notes');
+
 function getStorageDir() {
   // Always use the consistent 'gemini-notes' folder in Application Support so dev and standalone .app share notes, API keys, and logs
   const appSupport = app.getPath('appData');
