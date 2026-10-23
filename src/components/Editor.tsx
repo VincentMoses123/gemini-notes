@@ -34,24 +34,34 @@ import {
   Maximize2,
   Folder,
   MessageSquare,
+  History,
+  Scale,
+  Lightbulb,
+  BookOpen,
+  Languages,
+  Terminal,
 } from 'lucide-react';
-import { AIActionType, AppSettings, Note } from '../types';
+import { AIActionType, AppSettings, Note, NoteSnapshot } from '../types';
 import {
   generateNoteMetadata,
   markdownToHtml,
   runGeminiAction,
 } from '../services/gemini';
 import { htmlToMarkdown } from '../services/storage';
+import { logEvent } from '../services/logger';
 
 interface EditorProps {
   note: Note;
   folders: string[];
   settings: AppSettings;
   chatOpen: boolean;
+  focusMode: boolean;
   onUpdateNote: (updated: Partial<Note>) => void;
   onTrashNote: (id: string) => void;
   onOpenSettings: () => void;
+  onOpenLogs: () => void;
   onToggleChat: () => void;
+  onToggleFocusMode: () => void;
 }
 
 interface SlashCommandItem {
@@ -68,10 +78,13 @@ export const Editor: React.FC<EditorProps> = ({
   folders,
   settings,
   chatOpen,
+  focusMode,
   onUpdateNote,
   onTrashNote,
   onOpenSettings,
+  onOpenLogs,
   onToggleChat,
+  onToggleFocusMode,
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const lastLoadedNoteId = useRef<string | null>(null);
@@ -80,6 +93,7 @@ export const Editor: React.FC<EditorProps> = ({
   const [tagInput, setTagInput] = useState('');
   const [wordStats, setWordStats] = useState({ words: 0, chars: 0 });
   const [autoTagging, setAutoTagging] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   // Floating selection bubble state
   const [selectionMenu, setSelectionMenu] = useState<{
@@ -340,6 +354,39 @@ export const Editor: React.FC<EditorProps> = ({
       },
     },
     {
+      id: 'ai-pros-cons',
+      label: 'Generate Pros & Cons',
+      description: 'Analyze trade-offs, advantages, and risks on this topic',
+      category: 'ai',
+      icon: <Scale size={15} className="accent-icon" />,
+      run: () => {
+        const text = editorRef.current?.innerText?.trim() || note.title;
+        triggerAIAction('pros_cons', text, false);
+      },
+    },
+    {
+      id: 'ai-flashcards',
+      label: 'Create Study Flashcards & Quiz',
+      description: 'Turn your note into Q&A study flashcards and key terms',
+      category: 'ai',
+      icon: <BookOpen size={15} className="accent-icon" />,
+      run: () => {
+        const text = editorRef.current?.innerText?.trim() || '';
+        triggerAIAction('study_flashcards', text, false);
+      },
+    },
+    {
+      id: 'ai-eli5',
+      label: 'Explain Simply (ELI5)',
+      description: 'Break down complex ideas in plain language',
+      category: 'ai',
+      icon: <Lightbulb size={15} className="accent-icon" />,
+      run: () => {
+        const text = editorRef.current?.innerText?.trim() || '';
+        triggerAIAction('explain_simply', text, false);
+      },
+    },
+    {
       id: 'ai-custom',
       label: 'Ask Gemini Custom Prompt...',
       description: 'Give Gemini any custom writing or brainstorming instruction',
@@ -505,9 +552,40 @@ export const Editor: React.FC<EditorProps> = ({
     }
   };
 
+  // Save a snapshot of the current note state
+  const createSnapshot = (reason: string) => {
+    const currentHtml = editorRef.current?.innerHTML || note.content;
+    const snap: NoteSnapshot = {
+      id: `snap-${Date.now()}`,
+      title: note.title,
+      content: currentHtml,
+      reason,
+      createdAt: new Date().toISOString(),
+    };
+    const existing = note.snapshots || [];
+    onUpdateNote({ snapshots: [snap, ...existing].slice(0, 15) });
+    logEvent({
+      level: 'info',
+      source: 'editor',
+      message: `Saved note snapshot: "${reason}"`,
+      details: `Note: "${note.title}"`,
+    });
+  };
+
+  const handleRestoreSnapshot = (snap: NoteSnapshot) => {
+    createSnapshot('Before Snapshot Restore');
+    if (editorRef.current) {
+      editorRef.current.innerHTML = snap.content;
+    }
+    onUpdateNote({ title: snap.title, content: snap.content });
+    computeStats(snap.content);
+    setHistoryOpen(false);
+  };
+
   // Replace selected text in the editor with Gemini's result
   const handleReplaceSelection = () => {
     if (!editorRef.current || !aiPanel.resultMarkdown) return;
+    createSnapshot('Before AI Replace');
     const html = markdownToHtml(aiPanel.resultMarkdown);
 
     editorRef.current.focus();
@@ -660,6 +738,26 @@ export const Editor: React.FC<EditorProps> = ({
           >
             <MessageSquare size={14} />
             <span>Chat with Notes</span>
+          </button>
+
+          <button
+            className={`icon-btn ${historyOpen ? 'pinned-active' : ''}`}
+            onClick={() => setHistoryOpen((prev) => !prev)}
+            title={`Version Snapshots (${(note.snapshots || []).length})`}
+          >
+            <History size={16} />
+          </button>
+
+          <button
+            className={`icon-btn ${focusMode ? 'pinned-active' : ''}`}
+            onClick={onToggleFocusMode}
+            title={
+              focusMode
+                ? 'Exit Zen Focus Mode (⌘\\)'
+                : 'Enter Zen Focus Mode (⌘\\)'
+            }
+          >
+            {focusMode ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
           </button>
 
           <button
@@ -906,6 +1004,62 @@ export const Editor: React.FC<EditorProps> = ({
             </div>
           </div>
 
+          {/* Version Snapshots Drawer */}
+          {historyOpen && (
+            <div className="snapshots-inline-card">
+              <div className="ai-card-header">
+                <div className="ai-card-title">
+                  <History size={15} className="accent-icon" />
+                  <span>
+                    Note Version Snapshots ({(note.snapshots || []).length})
+                  </span>
+                </div>
+                <div className="snapshots-header-actions">
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={() => createSnapshot('Manual Checkpoint')}
+                  >
+                    <Plus size={12} />
+                    <span>Save Checkpoint</span>
+                  </button>
+                  <button
+                    className="icon-mini-btn"
+                    onClick={() => setHistoryOpen(false)}
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              </div>
+              {(!note.snapshots || note.snapshots.length === 0) ? (
+                <p className="snapshots-empty-text">
+                  No snapshots saved yet. Snapshots are created automatically
+                  before AI replacements or when you click "Save Checkpoint".
+                </p>
+              ) : (
+                <div className="snapshots-list">
+                  {note.snapshots.map((snap) => (
+                    <div key={snap.id} className="snapshot-item-row">
+                      <div>
+                        <strong>{snap.reason}</strong>
+                        <span className="snapshot-time">
+                          {new Date(snap.createdAt).toLocaleString()}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="secondary-btn"
+                        onClick={() => handleRestoreSnapshot(snap)}
+                      >
+                        Restore
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Inline Gemini Assistant Drawer / Card */}
           {aiPanel.open && (
             <div className="ai-inline-card">
@@ -1049,6 +1203,67 @@ export const Editor: React.FC<EditorProps> = ({
                   <Sparkles size={13} />
                   <span>Continue Writing</span>
                 </button>
+                <button
+                  type="button"
+                  className="ai-pill"
+                  disabled={aiPanel.loading}
+                  onClick={() =>
+                    triggerAIAction(
+                      'pros_cons',
+                      aiPanel.targetText,
+                      aiPanel.hasSelection
+                    )
+                  }
+                >
+                  <Scale size={13} />
+                  <span>Pros & Cons</span>
+                </button>
+                <button
+                  type="button"
+                  className="ai-pill"
+                  disabled={aiPanel.loading}
+                  onClick={() =>
+                    triggerAIAction(
+                      'study_flashcards',
+                      aiPanel.targetText,
+                      aiPanel.hasSelection
+                    )
+                  }
+                >
+                  <BookOpen size={13} />
+                  <span>Study Flashcards</span>
+                </button>
+                <button
+                  type="button"
+                  className="ai-pill"
+                  disabled={aiPanel.loading}
+                  onClick={() =>
+                    triggerAIAction(
+                      'explain_simply',
+                      aiPanel.targetText,
+                      aiPanel.hasSelection
+                    )
+                  }
+                >
+                  <Lightbulb size={13} />
+                  <span>Explain Simply</span>
+                </button>
+                <button
+                  type="button"
+                  className="ai-pill"
+                  disabled={aiPanel.loading}
+                  onClick={() =>
+                    triggerAIAction(
+                      'translate',
+                      aiPanel.targetText,
+                      aiPanel.hasSelection,
+                      'Spanish'
+                    )
+                  }
+                >
+                  <Languages size={13} />
+                  <span>Translate (ES)</span>
+                </button>
               </div>
 
               {/* Custom Instruction Input */}
@@ -1101,15 +1316,25 @@ export const Editor: React.FC<EditorProps> = ({
               {aiPanel.error && (
                 <div className="ai-error-box">
                   <span>{aiPanel.error}</span>
-                  {aiPanel.error.toLowerCase().includes('api key') && (
+                  <div className="ai-error-actions">
                     <button
                       type="button"
                       className="secondary-btn"
-                      onClick={onOpenSettings}
+                      onClick={onOpenLogs}
                     >
-                      Configure API Key
+                      <Terminal size={13} />
+                      <span>View Logs & Error Code</span>
                     </button>
-                  )}
+                    {aiPanel.error.toLowerCase().includes('api key') && (
+                      <button
+                        type="button"
+                        className="primary-btn"
+                        onClick={onOpenSettings}
+                      >
+                        Configure API Key
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 

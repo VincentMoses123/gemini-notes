@@ -14,6 +14,8 @@ import {
   Folder,
   LayoutTemplate,
   FolderPlus,
+  Terminal,
+  Command,
 } from 'lucide-react';
 import { Note } from '../types';
 
@@ -28,6 +30,7 @@ interface SidebarProps {
   selectedTag: string | null;
   searchQuery: string;
   hasApiKey: boolean;
+  errorCount: number;
   theme: 'dark' | 'light';
   onSelectNote: (id: string) => void;
   onCreateNote: () => void;
@@ -38,6 +41,8 @@ interface SidebarProps {
   onSelectTag: (tag: string | null) => void;
   onSearchChange: (q: string) => void;
   onOpenSettings: () => void;
+  onOpenLogs: () => void;
+  onOpenCommandPalette: () => void;
   onToggleTheme: () => void;
   onRestoreNote: (id: string, e: React.MouseEvent) => void;
   onDeletePermanently: (id: string, e: React.MouseEvent) => void;
@@ -68,6 +73,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   selectedTag,
   searchQuery,
   hasApiKey,
+  errorCount,
   theme,
   onSelectNote,
   onCreateNote,
@@ -78,6 +84,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectTag,
   onSearchChange,
   onOpenSettings,
+  onOpenLogs,
+  onOpenCommandPalette,
   onToggleTheme,
   onRestoreNote,
   onDeletePermanently,
@@ -179,6 +187,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
         />
+        <button
+          type="button"
+          className="cmd-k-trigger-btn"
+          onClick={onOpenCommandPalette}
+          title="Open Command Palette (⌘K)"
+        >
+          <Command size={11} />
+          <span>K</span>
+        </button>
       </div>
 
       <nav className="sidebar-nav">
@@ -386,11 +403,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="sidebar-footer">
         <button className="footer-settings-btn" onClick={onOpenSettings}>
           <Settings size={15} />
-          <span>Gemini Settings</span>
+          <span>Settings</span>
           <span
             className={`api-status-dot ${hasApiKey ? 'connected' : 'missing'}`}
             title={hasApiKey ? 'Gemini API Key Configured' : 'API Key Needed'}
           />
+        </button>
+        <button
+          className={`footer-logs-btn ${errorCount > 0 ? 'has-errors' : ''}`}
+          onClick={onOpenLogs}
+          title="Diagnostics, Activity Logs & Error Codes (⌘L)"
+        >
+          <Terminal size={14} />
+          <span>Logs</span>
+          {errorCount > 0 && (
+            <span className="logs-error-badge">{errorCount}</span>
+          )}
         </button>
         <button
           className="footer-theme-btn"

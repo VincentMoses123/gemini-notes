@@ -1,5 +1,6 @@
-import { AIActionType, AppSettings, ChatMessage, Note } from '../types';
+import { AIActionType, AppSettings, ChatMessage, ErrorCode, Note } from '../types';
 import { stripHtmlToText } from './storage';
+import { classifyErrorCode, logEvent } from './logger';
 
 const SYSTEM_INSTRUCTION = `You are an expert inline AI writing assistant embedded inside a modern note-taking app.
 Follow these formatting rules strictly:
@@ -38,34 +39,122 @@ export function buildPromptForAction(
       return `${contextHeader}Rewrite the following text in a warm, natural, conversational tone:\n\n"""\n${targetText}\n"""`;
     case 'continue_writing':
       return `${contextHeader}Continue writing the next paragraph(s) naturally based on the context below, matching its style and topic:\n\n"""\n${targetText}\n"""`;
+    case 'pros_cons':
+      return `${contextHeader}Generate a structured **Pros & Cons** analysis and key trade-offs based on the following topic or text:\n\n"""\n${targetText}\n"""`;
+    case 'explain_simply':
+      return `${contextHeader}Explain the following concept or text in simple, plain, easy-to-understand language (ELI5) with a quick analogy if helpful:\n\n"""\n${targetText}\n"""`;
+    case 'study_flashcards':
+      return `${contextHeader}Create a set of **Key Terms & Q&A Study Flashcards** (Question / Answer format) from the following notes:\n\n"""\n${targetText}\n"""`;
+    case 'translate':
+      return `${contextHeader}Translate the following text into ${
+        customInstruction || 'Spanish'
+      } while preserving formatting and tone:\n\n"""\n${targetText}\n"""`;
     case 'custom':
-      return `${contextHeader}Instruction: ${customInstruction || 'Improve the text'}\n\nTarget text:\n"""\n${targetText}\n"""`;
+      return `${contextHeader}Instruction: ${
+        customInstruction || 'Improve the text'
+      }\n\nTarget text:\n"""\n${targetText}\n"""`;
   }
 }
 
 export async function callGeminiRaw(params: {
   prompt: string;
+  actionLabel?: string;
   systemInstruction?: string;
   settings: AppSettings;
-}): Promise<{ ok: boolean; text?: string; usedModel?: string; error?: string }> {
-  const { prompt, systemInstruction = SYSTEM_INSTRUCTION, settings } = params;
+}): Promise<{
+  ok: boolean;
+  text?: string;
+  usedModel?: string;
+  errorCode?: ErrorCode;
+  error?: string;
+}> {
+  const {
+    prompt,
+    actionLabel = 'AI Request',
+    systemInstruction = SYSTEM_INSTRUCTION,
+    settings,
+  } = params;
+  const startTime = Date.now();
 
   if (window.electronAPI) {
-    return window.electronAPI.generateWithGemini({
+    const res = await window.electronAPI.generateWithGemini({
       apiKey: settings.apiKey,
       model: settings.model,
       systemInstruction,
       prompt,
     });
+
+    if (res.fallbackTriggered && res.initialModel && res.usedModel) {
+      await logEvent({
+        level: 'warn',
+        code: 'GN-MODEL-001',
+        source: 'gemini-api',
+        message: `Model "${res.initialModel}" unavailable; auto-switched to "${res.usedModel}".`,
+        details: `Action: ${actionLabel} | Automatic model discovery succeeded.`,
+        model: res.usedModel,
+        durationMs: res.durationMs,
+      });
+    }
+
+    if (res.ok && res.text) {
+      await logEvent({
+        level: 'info',
+        source: 'gemini-api',
+        message: `${actionLabel} completed (${res.text.length} chars)`,
+        details: `Prompt length: ${prompt.length} chars | Model: ${
+          res.usedModel || settings.model
+        }`,
+        model: res.usedModel || settings.model,
+        durationMs: res.durationMs || Date.now() - startTime,
+      });
+      return {
+        ok: true,
+        text: res.text,
+        usedModel: res.usedModel,
+      };
+    } else {
+      const code =
+        res.errorCode || classifyErrorCode(res.error || '', res.httpStatus);
+      const rawErr = (res.error || 'Unknown Gemini API error').replace(
+        /^\[GN-[A-Z]+-\d+\]\s*/,
+        ''
+      );
+      const formattedError = `[${code}] ${rawErr}`;
+
+      await logEvent({
+        level: 'error',
+        code,
+        source: 'gemini-api',
+        message: `${actionLabel} failed: ${rawErr}`,
+        details: `HTTP Status: ${res.httpStatus || 'N/A'} | Requested Model: ${
+          res.initialModel || settings.model
+        }`,
+        model: res.usedModel || settings.model,
+        durationMs: res.durationMs || Date.now() - startTime,
+      });
+
+      return {
+        ok: false,
+        errorCode: code,
+        error: formattedError,
+      };
+    }
   }
 
+  // Browser fallback
   const apiKey = settings.apiKey.trim();
   if (!apiKey) {
-    return {
-      ok: false,
-      error:
-        'Missing Gemini API key. Click "Gemini Settings" in the sidebar to enter your Gemini API key.',
-    };
+    const code: ErrorCode = 'GN-AUTH-001';
+    const msg =
+      '[GN-AUTH-001] Missing Gemini API key. Click "Gemini Settings" in the sidebar to enter your Gemini API key.';
+    await logEvent({
+      level: 'error',
+      code,
+      source: 'gemini-api',
+      message: `${actionLabel} aborted: Missing Gemini API Key`,
+      durationMs: Date.now() - startTime,
+    });
+    return { ok: false, errorCode: code, error: msg };
   }
 
   const callRestModel = async (targetModel: string) => {
@@ -118,10 +207,24 @@ export async function callGeminiRaw(params: {
       }
     }
 
+    const durationMs = Date.now() - startTime;
+
     if (!res.ok) {
+      const rawErr = data?.error?.message || `HTTP Error ${res.status}`;
+      const code = classifyErrorCode(rawErr, res.status);
+      await logEvent({
+        level: 'error',
+        code,
+        source: 'gemini-api',
+        message: `${actionLabel} failed: ${rawErr}`,
+        details: `HTTP ${res.status} | Model: ${usedModel}`,
+        model: usedModel,
+        durationMs,
+      });
       return {
         ok: false,
-        error: data?.error?.message || `HTTP Error ${res.status}`,
+        errorCode: code,
+        error: `[${code}] ${rawErr}`,
       };
     }
 
@@ -131,14 +234,45 @@ export async function callGeminiRaw(params: {
         .join('') || '';
 
     if (!text) {
-      return { ok: false, error: 'Gemini returned an empty response.' };
+      const code: ErrorCode = 'GN-PARSE-001';
+      await logEvent({
+        level: 'warn',
+        code,
+        source: 'gemini-api',
+        message: `${actionLabel} returned an empty response.`,
+        model: usedModel,
+        durationMs,
+      });
+      return {
+        ok: false,
+        errorCode: code,
+        error: '[GN-PARSE-001] Gemini returned an empty response.',
+      };
     }
+
+    await logEvent({
+      level: 'info',
+      source: 'gemini-api',
+      message: `${actionLabel} completed (${text.length} chars)`,
+      model: usedModel,
+      durationMs,
+    });
 
     return { ok: true, text, usedModel };
   } catch (err: any) {
+    const code: ErrorCode = 'GN-NET-001';
+    const rawErr = err?.message || 'Failed to reach Gemini API.';
+    await logEvent({
+      level: 'error',
+      code,
+      source: 'gemini-api',
+      message: `Network failure during ${actionLabel}: ${rawErr}`,
+      durationMs: Date.now() - startTime,
+    });
     return {
       ok: false,
-      error: err?.message || 'Failed to reach Gemini API.',
+      errorCode: code,
+      error: `[${code}] ${rawErr}`,
     };
   }
 }
@@ -149,7 +283,13 @@ export async function runGeminiAction(params: {
   noteTitle: string;
   customInstruction?: string;
   settings: AppSettings;
-}): Promise<{ ok: boolean; text?: string; usedModel?: string; error?: string }> {
+}): Promise<{
+  ok: boolean;
+  text?: string;
+  usedModel?: string;
+  errorCode?: ErrorCode;
+  error?: string;
+}> {
   const { action, targetText, noteTitle, customInstruction, settings } = params;
   const prompt = buildPromptForAction(
     action,
@@ -160,6 +300,7 @@ export async function runGeminiAction(params: {
 
   return callGeminiRaw({
     prompt,
+    actionLabel: `Inline AI (${action})`,
     systemInstruction: SYSTEM_INSTRUCTION,
     settings,
   });
@@ -184,9 +325,16 @@ export async function generateNoteMetadata(params: {
   const plainText = stripHtmlToText(noteContent);
 
   if (!plainText && !currentTitle) {
+    await logEvent({
+      level: 'warn',
+      code: 'GN-INPUT-001',
+      source: 'editor',
+      message: 'Auto-Title & Tag skipped: Note is empty.',
+    });
     return {
       ok: false,
-      error: 'Write some content in the note first so Gemini can analyze it.',
+      error:
+        '[GN-INPUT-001] Write some content in the note first so Gemini can analyze it.',
     };
   }
 
@@ -207,6 +355,7 @@ ${plainText.slice(0, 4000)}
 
   const res = await callGeminiRaw({
     prompt,
+    actionLabel: 'Auto-Title & Tag',
     systemInstruction:
       'You are a precise JSON generator. Return only valid JSON with keys "title", "tags", and "folder".',
     settings,
@@ -244,10 +393,18 @@ ${plainText.slice(0, 4000)}
         : undefined;
 
     return { ok: true, title, tags, folder };
-  } catch {
+  } catch (e: any) {
+    await logEvent({
+      level: 'warn',
+      code: 'GN-PARSE-001',
+      source: 'gemini-api',
+      message: 'Failed to parse JSON from Auto-Title & Tag response.',
+      details: res.text,
+    });
     return {
       ok: false,
-      error: 'Could not parse AI metadata response. Please try again.',
+      error:
+        '[GN-PARSE-001] Could not parse AI metadata response. Please try again.',
     };
   }
 }
@@ -298,6 +455,7 @@ Instructions:
 
   const res = await callGeminiRaw({
     prompt,
+    actionLabel: `Chat with Notes (${activeNotes.length} notes)`,
     systemInstruction:
       'You are an intelligent knowledge-base assistant built into Gemini Notes. Help the user find insights, synthesize information, and answer questions across all their notes.',
     settings,
@@ -307,7 +465,6 @@ Instructions:
     return { ok: false, error: res.error || 'Failed to get an answer.' };
   }
 
-  // Detect which notes were mentioned in the response or matched the query
   const answerLower = res.text.toLowerCase();
   const citedNotes = activeNotes
     .filter((n) => {
@@ -330,7 +487,13 @@ Instructions:
 export async function generateCustomTemplate(params: {
   topic: string;
   settings: AppSettings;
-}): Promise<{ ok: boolean; title?: string; html?: string; tags?: string[]; error?: string }> {
+}): Promise<{
+  ok: boolean;
+  title?: string;
+  html?: string;
+  tags?: string[];
+  error?: string;
+}> {
   const { topic, settings } = params;
   const prompt = `Create a comprehensive, well-structured note-taking template for: "${topic}".
 Use Markdown headings (##), bullet lists (- ), numbered lists (1. ), and placeholder prompts so the user can fill it out immediately.
@@ -338,6 +501,7 @@ Do NOT wrap the response in code fences and do NOT include conversational intro 
 
   const res = await callGeminiRaw({
     prompt,
+    actionLabel: `Generate Template ("${topic}")`,
     systemInstruction: SYSTEM_INSTRUCTION,
     settings,
   });
@@ -350,7 +514,10 @@ Do NOT wrap the response in code fences and do NOT include conversational intro 
     ok: true,
     title: topic.replace(/\b\w/g, (c) => c.toUpperCase()),
     html: markdownToHtml(res.text),
-    tags: ['template', topic.toLowerCase().split(/\s+/)[0].replace(/[^a-z0-9]/g, '')].filter(Boolean),
+    tags: [
+      'template',
+      topic.toLowerCase().split(/\s+/)[0].replace(/[^a-z0-9]/g, ''),
+    ].filter(Boolean),
   };
 }
 

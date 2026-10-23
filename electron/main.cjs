@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 function getStorageDir() {
-  // Always use the consistent 'gemini-notes' folder in Application Support so dev and standalone .app share notes & API keys
+  // Always use the consistent 'gemini-notes' folder in Application Support so dev and standalone .app share notes, API keys, and logs
   const appSupport = app.getPath('appData');
   const dir = path.join(appSupport, 'gemini-notes', 'notes-data');
   if (!fs.existsSync(dir)) {
@@ -20,14 +20,16 @@ function getSettingsFilePath() {
   return path.join(getStorageDir(), 'settings.json');
 }
 
-function createWindow() {
-  const isDev = !app.isPackaged && process.env.NODE_ENV !== 'production';
+function getLogsFilePath() {
+  return path.join(getStorageDir(), 'app-logs.json');
+}
 
+function createWindow() {
   const win = new BrowserWindow({
-    width: 1240,
-    height: 820,
-    minWidth: 880,
-    minHeight: 560,
+    width: 1280,
+    height: 840,
+    minWidth: 920,
+    minHeight: 580,
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 16, y: 16 },
     backgroundColor: '#0f1117',
@@ -92,7 +94,7 @@ app.whenReady().then(() => {
       if (!fs.existsSync(filePath)) {
         return {
           apiKey: envKey,
-          model: 'gemini-3.0-flash',
+          model: 'gemini-3-flash-preview',
           theme: 'dark',
           storagePath: getStorageDir(),
         };
@@ -115,7 +117,7 @@ app.whenReady().then(() => {
       console.error('Error loading settings:', err);
       return {
         apiKey: process.env.GEMINI_API_KEY || '',
-        model: 'gemini-3.0-flash',
+        model: 'gemini-3-flash-preview',
         theme: 'dark',
         storagePath: getStorageDir(),
       };
@@ -130,6 +132,48 @@ app.whenReady().then(() => {
       return { ok: true };
     } catch (err) {
       console.error('Error saving settings:', err);
+      return { ok: false, error: err.message };
+    }
+  });
+
+  // IPC: Load persistent logs
+  ipcMain.handle('logs:load', async () => {
+    try {
+      const filePath = getLogsFilePath();
+      if (!fs.existsSync(filePath)) return [];
+      return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    } catch {
+      return [];
+    }
+  });
+
+  // IPC: Append a log entry to app-logs.json
+  ipcMain.handle('logs:append', async (_event, entry) => {
+    try {
+      const filePath = getLogsFilePath();
+      let existing = [];
+      if (fs.existsSync(filePath)) {
+        try {
+          existing = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+        } catch {
+          existing = [];
+        }
+      }
+      const updated = [entry, ...(Array.isArray(existing) ? existing : [])].slice(0, 250);
+      fs.writeFileSync(filePath, JSON.stringify(updated, null, 2), 'utf-8');
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  // IPC: Clear logs
+  ipcMain.handle('logs:clear', async () => {
+    try {
+      const filePath = getLogsFilePath();
+      fs.writeFileSync(filePath, '[]', 'utf-8');
+      return { ok: true };
+    } catch (err) {
       return { ok: false, error: err.message };
     }
   });
@@ -157,11 +201,14 @@ app.whenReady().then(() => {
 
   // IPC: Call Gemini API from Main process
   ipcMain.handle('gemini:generate', async (_event, { apiKey, model, systemInstruction, prompt }) => {
+    const startTime = Date.now();
     const resolvedKey = (apiKey || process.env.GEMINI_API_KEY || '').trim();
     if (!resolvedKey) {
       return {
         ok: false,
-        error: 'Missing Gemini API key. Click "Settings" in the sidebar to add your Gemini API key.',
+        errorCode: 'GN-AUTH-001',
+        error: '[GN-AUTH-001] Missing Gemini API key. Click "Gemini Settings" in the sidebar to add your API key.',
+        durationMs: Date.now() - startTime,
       };
     }
 
@@ -225,13 +272,14 @@ app.whenReady().then(() => {
     };
 
     try {
-      const initialModel = model || 'gemini-2.5-flash';
+      const initialModel = (model || 'gemini-3-flash-preview').replace(/^models\//, '');
       const triedModels = new Set();
 
       let { response, data, usedModel } = await callModel(initialModel);
       triedModels.add(usedModel);
+      let fallbackTriggered = false;
 
-      // Step 1: Check if error message explicitly suggests another model (e.g. "Please update your code to use models/...")
+      // Step 1: Check if error message explicitly suggests another model
       if (!response.ok) {
         const errMessage = data?.error?.message || '';
         const allMatches = Array.from(
@@ -241,6 +289,7 @@ app.whenReady().then(() => {
         for (const candidate of allMatches) {
           if (candidate && !triedModels.has(candidate)) {
             triedModels.add(candidate);
+            fallbackTriggered = true;
             const retryResult = await callModel(candidate);
             response = retryResult.response;
             data = retryResult.data;
@@ -253,7 +302,6 @@ app.whenReady().then(() => {
       // Step 2: If still not ok (e.g. 404 Not Found), query ListModels and try available flash/pro models
       if (!response.ok) {
         const available = await fetchAvailableModels();
-        // Sort to prefer latest flash models first
         available.sort((a, b) => {
           const aFlash = a.includes('flash') ? 0 : 1;
           const bFlash = b.includes('flash') ? 0 : 1;
@@ -264,12 +312,12 @@ app.whenReady().then(() => {
         for (const candidate of available) {
           if (triedModels.has(candidate)) continue;
           triedModels.add(candidate);
+          fallbackTriggered = true;
           const retryResult = await callModel(candidate);
           response = retryResult.response;
           data = retryResult.data;
           usedModel = retryResult.usedModel;
           if (response.ok) break;
-          // Also check if this model's error points to a specific replacement model
           const errMessage = data?.error?.message || '';
           const nextMatches = Array.from(
             errMessage.matchAll(/models\/([a-zA-Z0-9._-]+)/g),
@@ -289,10 +337,19 @@ app.whenReady().then(() => {
         }
       }
 
+      const durationMs = Date.now() - startTime;
+
       if (!response.ok) {
         const errMessage =
           data?.error?.message || `Gemini API returned HTTP ${response.status}`;
-        return { ok: false, error: errMessage };
+        return {
+          ok: false,
+          httpStatus: response.status,
+          error: errMessage,
+          usedModel,
+          initialModel,
+          durationMs,
+        };
       }
 
       const text =
@@ -303,15 +360,29 @@ app.whenReady().then(() => {
       if (!text) {
         return {
           ok: false,
-          error: 'Gemini returned an empty response. Try rephrasing your request.',
+          errorCode: 'GN-PARSE-001',
+          error: '[GN-PARSE-001] Gemini returned an empty response. Try rephrasing your request.',
+          usedModel,
+          initialModel,
+          durationMs,
         };
       }
 
-      return { ok: true, text, usedModel };
+      return {
+        ok: true,
+        text,
+        usedModel,
+        initialModel,
+        fallbackTriggered,
+        httpStatus: response.status,
+        durationMs,
+      };
     } catch (err) {
       return {
         ok: false,
+        errorCode: 'GN-NET-001',
         error: err.message || 'Network error while contacting Gemini API.',
+        durationMs: Date.now() - startTime,
       };
     }
   });

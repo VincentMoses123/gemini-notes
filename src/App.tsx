@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { FilePlus, LayoutTemplate, Sparkles } from 'lucide-react';
-import { AppSettings, Note } from './types';
+import { AppSettings, LogEntry, Note } from './types';
 import {
   DEFAULT_FOLDERS,
   DEFAULT_SETTINGS,
@@ -9,11 +9,14 @@ import {
   saveNotesToStorage,
   saveSettingsToStorage,
 } from './services/storage';
+import { initLogger, logEvent, subscribeToLogs } from './services/logger';
 import { FilterView, Sidebar } from './components/Sidebar';
 import { Editor } from './components/Editor';
 import { SettingsModal } from './components/SettingsModal';
 import { ChatSidebar } from './components/ChatSidebar';
 import { TemplatesModal } from './components/TemplatesModal';
+import { LogsModal } from './components/LogsModal';
+import { CommandPalette } from './components/CommandPalette';
 
 export const App: React.FC = () => {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -25,15 +28,21 @@ export const App: React.FC = () => {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [logsOpen, setLogsOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
   const [initialized, setInitialized] = useState(false);
 
-  // Load initial data
+  // Load initial data & initialize logger
   useEffect(() => {
+    const unsubscribe = subscribeToLogs(setLogs);
     async function init() {
       const [loadedNotes, loadedSettings] = await Promise.all([
         loadNotesFromStorage(),
         loadSettingsFromStorage(),
+        initLogger(),
       ]);
       setNotes(loadedNotes);
       setSettings(loadedSettings);
@@ -44,6 +53,7 @@ export const App: React.FC = () => {
       setInitialized(true);
     }
     init();
+    return unsubscribe;
   }, []);
 
   // Apply theme attribute to document root
@@ -67,6 +77,7 @@ export const App: React.FC = () => {
       tags: selectedTag ? [selectedTag] : [],
       pinned: filterView === 'pinned',
       trashed: false,
+      snapshots: [],
       createdAt: now,
       updatedAt: now,
     };
@@ -77,6 +88,11 @@ export const App: React.FC = () => {
 
     setNotes((prev) => [newNote, ...prev]);
     setActiveNoteId(newNote.id);
+    logEvent({
+      level: 'info',
+      source: 'editor',
+      message: `Created new note in folder "${newNote.folder}"`,
+    });
   }, [filterView, selectedFolder, selectedTag]);
 
   const handleCreateFromTemplate = useCallback(
@@ -95,6 +111,7 @@ export const App: React.FC = () => {
         tags: tpl.tags,
         pinned: false,
         trashed: false,
+        snapshots: [],
         createdAt: now,
         updatedAt: now,
       };
@@ -103,22 +120,36 @@ export const App: React.FC = () => {
       }
       setNotes((prev) => [newNote, ...prev]);
       setActiveNoteId(newNote.id);
+      logEvent({
+        level: 'info',
+        source: 'editor',
+        message: `Created note from template: "${tpl.title}"`,
+      });
     },
     [filterView, selectedFolder]
   );
 
-  // Global keyboard shortcuts (Cmd+N for new note, Cmd+, for settings, Cmd+J for Chat with Notes)
+  // Global keyboard shortcuts (Cmd+N, Cmd+K, Cmd+J, Cmd+L, Cmd+\, Cmd+,)
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
         e.preventDefault();
         handleCreateNote();
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setCommandPaletteOpen((prev) => !prev);
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'l') {
+        e.preventDefault();
+        setLogsOpen((prev) => !prev);
       } else if ((e.metaKey || e.ctrlKey) && e.key === ',') {
         e.preventDefault();
         setSettingsOpen(true);
       } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
         e.preventDefault();
         setChatOpen((prev) => !prev);
+      } else if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
+        e.preventDefault();
+        setFocusMode((prev) => !prev);
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -158,6 +189,11 @@ export const App: React.FC = () => {
       }
       return updated;
     });
+    logEvent({
+      level: 'info',
+      source: 'storage',
+      message: `Moved note (${id}) to Trash`,
+    });
   };
 
   const handleRestoreNote = (id: string, e: React.MouseEvent) => {
@@ -186,6 +222,11 @@ export const App: React.FC = () => {
   const handleSaveSettings = (newSettings: AppSettings) => {
     setSettings(newSettings);
     saveSettingsToStorage(newSettings);
+    logEvent({
+      level: 'info',
+      source: 'system',
+      message: `Saved Gemini Settings (model: ${newSettings.model})`,
+    });
   };
 
   const handleAddFolder = (folderName: string) => {
@@ -206,32 +247,38 @@ export const App: React.FC = () => {
 
   const activeNote = notes.find((n) => n.id === activeNoteId) || null;
   const folders = settings.folders || DEFAULT_FOLDERS;
+  const errorCount = logs.filter((l) => l.level === 'error').length;
 
   return (
     <div className="app-shell">
-      <Sidebar
-        notes={notes}
-        folders={folders}
-        activeNoteId={activeNoteId}
-        filterView={filterView}
-        selectedFolder={selectedFolder}
-        selectedTag={selectedTag}
-        searchQuery={searchQuery}
-        hasApiKey={Boolean(settings.apiKey?.trim())}
-        theme={settings.theme}
-        onSelectNote={setActiveNoteId}
-        onCreateNote={handleCreateNote}
-        onOpenTemplates={() => setTemplatesOpen(true)}
-        onChangeFilter={setFilterView}
-        onSelectFolder={setSelectedFolder}
-        onAddFolder={handleAddFolder}
-        onSelectTag={setSelectedTag}
-        onSearchChange={setSearchQuery}
-        onOpenSettings={() => setSettingsOpen(true)}
-        onToggleTheme={handleToggleTheme}
-        onRestoreNote={handleRestoreNote}
-        onDeletePermanently={handleDeletePermanently}
-      />
+      {!focusMode && (
+        <Sidebar
+          notes={notes}
+          folders={folders}
+          activeNoteId={activeNoteId}
+          filterView={filterView}
+          selectedFolder={selectedFolder}
+          selectedTag={selectedTag}
+          searchQuery={searchQuery}
+          hasApiKey={Boolean(settings.apiKey?.trim())}
+          errorCount={errorCount}
+          theme={settings.theme}
+          onSelectNote={setActiveNoteId}
+          onCreateNote={handleCreateNote}
+          onOpenTemplates={() => setTemplatesOpen(true)}
+          onChangeFilter={setFilterView}
+          onSelectFolder={setSelectedFolder}
+          onAddFolder={handleAddFolder}
+          onSelectTag={setSelectedTag}
+          onSearchChange={setSearchQuery}
+          onOpenSettings={() => setSettingsOpen(true)}
+          onOpenLogs={() => setLogsOpen(true)}
+          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+          onToggleTheme={handleToggleTheme}
+          onRestoreNote={handleRestoreNote}
+          onDeletePermanently={handleDeletePermanently}
+        />
+      )}
 
       {activeNote ? (
         <Editor
@@ -239,10 +286,13 @@ export const App: React.FC = () => {
           folders={folders}
           settings={settings}
           chatOpen={chatOpen}
+          focusMode={focusMode}
           onUpdateNote={handleUpdateActiveNote}
           onTrashNote={handleTrashNote}
           onOpenSettings={() => setSettingsOpen(true)}
+          onOpenLogs={() => setLogsOpen(true)}
           onToggleChat={() => setChatOpen((prev) => !prev)}
+          onToggleFocusMode={() => setFocusMode((prev) => !prev)}
         />
       ) : (
         <div className="empty-editor-state">
@@ -293,6 +343,25 @@ export const App: React.FC = () => {
           settings={settings}
           onSelectTemplate={handleCreateFromTemplate}
           onClose={() => setTemplatesOpen(false)}
+        />
+      )}
+
+      {logsOpen && (
+        <LogsModal logs={logs} onClose={() => setLogsOpen(false)} />
+      )}
+
+      {commandPaletteOpen && (
+        <CommandPalette
+          notes={notes}
+          onClose={() => setCommandPaletteOpen(false)}
+          onSelectNote={(id) => setActiveNoteId(id)}
+          onCreateNote={handleCreateNote}
+          onOpenTemplates={() => setTemplatesOpen(true)}
+          onToggleChat={() => setChatOpen((prev) => !prev)}
+          onOpenLogs={() => setLogsOpen(true)}
+          onOpenSettings={() => setSettingsOpen(true)}
+          onToggleFocusMode={() => setFocusMode((prev) => !prev)}
+          onToggleTheme={handleToggleTheme}
         />
       )}
 

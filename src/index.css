@@ -1706,3 +1706,411 @@ code {
   display: flex;
   gap: 8px;
 }
+
+
+/* ==================== LOGS, ERROR CODES, COMMAND PALETTE & SNAPSHOTS ==================== */
+.cmd-k-trigger-btn {
+  position: absolute;
+  right: 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  border-radius: 5px;
+  padding: 2px 5px;
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cmd-k-trigger-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.sidebar-search input {
+  padding-right: 44px;
+}
+
+.footer-logs-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.footer-logs-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.footer-logs-btn.has-errors {
+  border-color: rgba(239, 68, 68, 0.45);
+  color: var(--danger);
+}
+
+.logs-error-badge {
+  background: var(--danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 9px;
+}
+
+/* Logs Modal */
+.logs-modal-card {
+  width: 780px;
+  height: 620px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.logs-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.logs-tabs-bar {
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.logs-main-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.logs-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  padding: 6px 11px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.logs-tab-btn.active {
+  background: var(--bg-secondary);
+  border-color: var(--border-strong);
+  color: var(--accent);
+}
+
+.logs-filter-pills {
+  display: flex;
+  gap: 5px;
+}
+
+.filter-pill {
+  font-size: 11.5px;
+  padding: 4px 9px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.filter-pill.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.logs-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.empty-logs-state {
+  padding: 36px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.logs-entries-list,
+.error-codes-reference-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.log-entry-card {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 10px 12px;
+  user-select: text;
+}
+
+.log-entry-card.warn {
+  border-left-color: var(--warning);
+}
+
+.log-entry-card.error {
+  border-left-color: var(--danger);
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.log-entry-top {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 5px;
+}
+
+.log-level-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.log-level-badge.info {
+  background: rgba(16, 185, 129, 0.14);
+  color: var(--success);
+}
+
+.log-level-badge.warn {
+  background: rgba(245, 158, 11, 0.16);
+  color: var(--warning);
+}
+
+.log-level-badge.error {
+  background: rgba(239, 68, 68, 0.18);
+  color: var(--danger);
+}
+
+.error-code-chip {
+  font-family: 'SF Mono', Menlo, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-strong);
+  color: var(--accent);
+  padding: 2px 6px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.log-source-tag {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.log-meta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.log-timestamp {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.log-entry-message {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.45;
+}
+
+.log-entry-details {
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-family: 'SF Mono', Menlo, monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.error-code-ref-card {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  user-select: text;
+}
+
+.error-code-ref-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+}
+
+.error-code-ref-header .log-level-badge {
+  margin-left: auto;
+}
+
+.error-ref-line {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.error-ref-line.resolution {
+  color: var(--text-primary);
+}
+
+.ai-error-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Command Palette (⌘K) */
+.command-palette-card {
+  width: 540px;
+}
+
+.command-palette-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.command-palette-search input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.esc-hint {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border: 1px solid var(--border-strong);
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+.command-palette-list {
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.command-palette-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 11px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.command-palette-item.selected {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.cp-item-left {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.cp-item-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Snapshots Drawer */
+.snapshots-inline-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+}
+
+.snapshots-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.snapshots-empty-text {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.snapshots-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.snapshot-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-tertiary);
+  padding: 8px 11px;
+  border-radius: 8px;
+  font-size: 12.5px;
+}
+
+.snapshot-time {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+}
