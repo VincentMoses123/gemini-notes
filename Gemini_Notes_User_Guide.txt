@@ -1,0 +1,169 @@
+================================================================================
+                        GEMINI NOTES — USER GUIDE & FEATURES
+================================================================================
+
+Welcome to Gemini Notes! Gemini Notes is a local-first macOS desktop note-taking
+application built with Electron, React, and TypeScript, featuring a deeply
+integrated Google Gemini AI assistant.
+
+--------------------------------------------------------------------------------
+1. HOW TO LAUNCH THE APP
+--------------------------------------------------------------------------------
+• Standalone Desktop App:
+  Double-click "Gemini Notes.app" (located on your Desktop or inside
+  "/Users/vincentmoses/Desktop/New project/gemini-notes/release/Gemini Notes.app").
+  You can also drag "Gemini Notes.app" into your macOS Applications folder or Dock.
+
+• Developer Mode (from Terminal):
+  cd "/Users/vincentmoses/Desktop/New project/gemini-notes"
+  npm start        (builds and launches the app)
+  npm run dev      (runs with live hot-reloading)
+  npm run package:mac (rebuilds the standalone "Gemini Notes.app")
+
+• GitHub Repository:
+  https://github.com/VincentMoses123/gemini-notes
+
+--------------------------------------------------------------------------------
+2. INITIAL SETUP (GEMINI API KEY)
+--------------------------------------------------------------------------------
+1. Click "Settings" in the bottom-left corner of the sidebar (or press Cmd + ,).
+2. Paste your Gemini API key from Google AI Studio (https://aistudio.google.com).
+3. Click "Test Gemini Connection".
+   - The app will automatically verify your key and select the best supported
+     Gemini model on your account (such as Gemini 3 Flash).
+4. Click "Save Settings".
+   - Your API key and notes are stored locally on your Mac at:
+     ~/Library/Application Support/gemini-notes/notes-data/
+   - They are NEVER stored inside your Git repository.
+
+--------------------------------------------------------------------------------
+3. COMPLETE FEATURE LIST & HOW TO USE THEM
+--------------------------------------------------------------------------------
+
+A. INLINE GEMINI WRITING ASSISTANT (3 Ways to Trigger)
+   1. Highlight Any Text (Floating Bubble Menu):
+      Select any sentence or paragraph in your note. A floating toolbar will
+      appear right above your selection with instant actions:
+      - Improve Writing
+      - Summarize
+      - Fix Grammar
+      - Expand
+      - Ask AI... (custom prompt on just that selection)
+
+   2. Type "/" Anywhere in the Editor (Slash Command Palette):
+      Type "/" on a new line or after a space to open the Notion-style command
+      menu. Use Up/Down arrows and Enter (or click) to run:
+      - Continue Writing (Gemini writes the next paragraph based on context)
+      - Summarize Note
+      - Extract Action Items (pulls tasks, owners, and deadlines)
+      - Generate Pros & Cons (creates a structured trade-off analysis)
+      - Create Study Flashcards & Quiz (turns notes into Q&A flashcards)
+      - Explain Simply / ELI5 (breaks down complex topics into plain English)
+      - Ask Gemini Custom Prompt...
+      - Block Formatting: Heading 1, Heading 2, Heading 3, Bullet List,
+        Numbered List, Quote Block, Divider Line.
+
+   3. Click "Ask Gemini" in the Top Bar:
+      Opens the inline Gemini Writing Assistant card with 12 one-click AI
+      tools (including Make Concise, Professional Tone, and Translate) plus a
+      freeform prompt box.
+      - When Gemini finishes generating, preview the result and choose:
+        [Replace Selection], [Insert Below], [Copy], or [Retry].
+
+B. CHAT WITH ALL NOTES — AI KNOWLEDGE BASE (Cmd + J)
+   • Click "Chat with Notes" in the top-right bar (or press Cmd + J).
+   • Ask questions across your ENTIRE library of active notes (e.g.,
+     "What action items do I have across my notes?" or "Summarize my project
+     ideas").
+   • Click any "Referenced notes" chip below an AI answer to jump directly to
+     that source note.
+   • Click "Save as New Note" on any AI response to save the synthesis as a
+     brand-new note in your notebook.
+
+C. ONE-CLICK AUTO-TITLE & AUTO-TAGGING
+   • Click the "Auto-Title & Tag" button right below your note's title.
+   • Gemini reads your note content and automatically:
+     1. Generates a concise, descriptive title
+     2. Adds 3–5 relevant #tags
+     3. Assigns the note to the best matching Notebook folder
+
+D. NOTEBOOKS (FOLDERS), TAGS & TEMPLATES
+   • Notebooks: Organize notes into General, Work, Projects, or Journal, or
+     click the folder+ icon next to "NOTEBOOKS" in the sidebar to create custom
+     folders.
+   • Templates Gallery & Custom AI Template Builder:
+     Click the template icon next to "+ New" in the top-left of the sidebar to:
+     - Pick a built-in template (Meeting Notes, Daily Journal & Standup,
+       Project Spec / PRD, Brainstorm & Research), OR
+     - Type ANY topic into "Generate Any Custom Template with Gemini" (e.g.,
+       "Weekly Workout Tracker" or "Podcast Outline") to build a custom
+       template on the spot.
+
+E. SPOTLIGHT COMMAND PALETTE (Cmd + K)
+   • Press Cmd + K from anywhere (or click the "Cmd K" button in the search bar)
+     to fuzzy-search all notes or trigger any app action from your keyboard.
+
+F. VERSION SNAPSHOTS & RESTORE
+   • Click the History (clock) icon in the top-right bar of the editor.
+   • Gemini Notes automatically saves a backup snapshot of your note before any
+     AI text replacement. You can also click "Save Checkpoint" manually and
+     restore any earlier version with one click.
+
+G. ZEN FOCUS WRITING MODE (Cmd + \)
+   • Click the Expand icon in the top-right bar (or press Cmd + \) to hide all
+     sidebars for a distraction-free writing experience.
+
+H. MARKDOWN EXPORT & DARK/LIGHT THEME
+   • Click the Download icon in the top-right bar to export any note as a clean
+     Markdown (.md) file.
+   • Click the Sun/Moon icon in the bottom-left sidebar footer to toggle between
+     Dark Mode and Light Mode.
+
+--------------------------------------------------------------------------------
+4. KEYBOARD SHORTCUTS CHEAT SHEET
+--------------------------------------------------------------------------------
+  Cmd + K     Open Spotlight Command Palette & Quick Note Search
+  Cmd + N     Create New Blank Note
+  Cmd + J     Toggle "Chat with All Notes" AI Sidebar
+  Cmd + L     Open Diagnostics, Activity Logs & Error Codes Viewer
+  Cmd + \     Toggle Zen Focus Writing Mode
+  Cmd + ,     Open Gemini AI & App Settings
+  /           Open Inline Slash Command Menu inside the Editor
+  Cmd + B     Bold selected text
+  Cmd + I     Italicize selected text
+  Cmd + U     Underline selected text
+
+--------------------------------------------------------------------------------
+5. DIAGNOSTICS, LOGS & ERROR CODES REFERENCE (Cmd + L)
+--------------------------------------------------------------------------------
+Click "Logs" in the bottom-left sidebar footer (or press Cmd + L) to inspect
+live API activity, response latency (in ms), model auto-switching, and error
+codes. Logs are also saved on disk at:
+~/Library/Application Support/gemini-notes/notes-data/app-logs.json
+
+Error Code Reference:
+• GN-AUTH-001  | Missing Gemini API Key
+  Fix: Open Settings (Cmd + ,) and enter your key from aistudio.google.com.
+
+• GN-AUTH-002  | Invalid or Unauthorized API Key (HTTP 400/401/403)
+  Fix: Verify your API key in Google AI Studio and click "Test Gemini Connection".
+
+• GN-MODEL-001 | Model Deprecated or Not Found (HTTP 404)
+  Fix: Handled automatically! Gemini Notes queries ListModels and switches to
+       an active model on your account automatically.
+
+• GN-QUOTA-001 | Rate Limit or Quota Exceeded (HTTP 429)
+  Fix: Wait 15–30 seconds and click Retry, or switch to a Flash model.
+
+• GN-NET-001   | Network / DNS Connection Failure
+  Fix: Check your internet connection. Local note-taking works 100% offline.
+
+• GN-PARSE-001 | AI Response Empty or Malformed
+  Fix: Click Retry or rephrase your prompt slightly.
+
+• GN-FS-001    | Local Storage Read/Write Error
+  Fix: Check disk permissions via Settings -> Show in Finder.
+
+• GN-INPUT-001 | Empty Input Context
+  Fix: Type a few words in the note or select text before running an AI tool.
+================================================================================

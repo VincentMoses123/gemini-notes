@@ -26,7 +26,24 @@ function getLogsFilePath() {
   return path.join(getStorageDir(), 'app-logs.json');
 }
 
+function getAppIconPath() {
+  const candidates = [
+    path.join(__dirname, '../public/app-icon.png'),
+    path.join(__dirname, '../dist/app-icon.png'),
+  ];
+  return candidates.find((p) => fs.existsSync(p)) || undefined;
+}
+
 function createWindow() {
+  const iconPath = getAppIconPath();
+  if (process.platform === 'darwin' && app.dock && iconPath) {
+    try {
+      app.dock.setIcon(iconPath);
+    } catch {
+      // ignore
+    }
+  }
+
   const win = new BrowserWindow({
     width: 1280,
     height: 840,
@@ -35,6 +52,7 @@ function createWindow() {
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 16, y: 16 },
     backgroundColor: '#0f1117',
+    icon: iconPath,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,

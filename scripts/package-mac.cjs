@@ -59,7 +59,19 @@ execFileSync('cp', [
   path.join(resourcesAppDir, 'dist'),
 ]);
 
-// 4. Update Info.plist metadata
+// 4. Replace default Electron icon with custom AI icon (.icns) if present
+const customIcnsPath = path.join(rootDir, 'public', 'app-icon.icns');
+const bundleIcnsPath = path.join(
+  tempAppPath,
+  'Contents',
+  'Resources',
+  'electron.icns'
+);
+if (fs.existsSync(customIcnsPath)) {
+  fs.copyFileSync(customIcnsPath, bundleIcnsPath);
+}
+
+// 5. Update Info.plist metadata
 const infoPlistPath = path.join(tempAppPath, 'Contents', 'Info.plist');
 try {
   execFileSync('plutil', [
