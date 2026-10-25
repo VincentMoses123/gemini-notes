@@ -45,13 +45,13 @@ function createWindow() {
   }
 
   const win = new BrowserWindow({
-    width: 1280,
-    height: 840,
-    minWidth: 920,
+    width: 1320,
+    height: 850,
+    minWidth: 960,
     minHeight: 580,
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 16, y: 16 },
-    backgroundColor: '#0f1117',
+    backgroundColor: '#18191c',
     icon: iconPath,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -116,6 +116,8 @@ app.whenReady().then(() => {
           apiKey: envKey,
           model: 'gemini-3-flash-preview',
           theme: 'dark',
+          accentTheme: 'sapphire',
+          layoutMode: 'three-column',
           storagePath: getStorageDir(),
         };
       }
@@ -130,6 +132,8 @@ app.whenReady().then(() => {
         apiKey: saved.apiKey || envKey,
         model: savedModel,
         theme: saved.theme || 'dark',
+        accentTheme: saved.accentTheme || 'sapphire',
+        layoutMode: saved.layoutMode || 'three-column',
         folders: saved.folders,
         storagePath: getStorageDir(),
       };
@@ -139,6 +143,8 @@ app.whenReady().then(() => {
         apiKey: process.env.GEMINI_API_KEY || '',
         model: 'gemini-3-flash-preview',
         theme: 'dark',
+        accentTheme: 'sapphire',
+        layoutMode: 'three-column',
         storagePath: getStorageDir(),
       };
     }

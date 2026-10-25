@@ -148,6 +148,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   apiKey: '',
   model: 'gemini-3-flash-preview',
   theme: 'dark',
+  accentTheme: 'sapphire',
+  layoutMode: 'three-column',
   storagePath: 'Local App Data',
   folders: DEFAULT_FOLDERS,
 };
@@ -204,7 +206,13 @@ export async function loadSettingsFromStorage(): Promise<AppSettings> {
       Array.isArray(settings.folders) && settings.folders.length > 0
         ? settings.folders
         : DEFAULT_FOLDERS;
-    return { ...DEFAULT_SETTINGS, ...settings, folders };
+    return {
+      ...DEFAULT_SETTINGS,
+      ...settings,
+      accentTheme: settings.accentTheme || 'sapphire',
+      layoutMode: settings.layoutMode || 'three-column',
+      folders,
+    };
   }
 
   try {
@@ -215,7 +223,13 @@ export async function loadSettingsFromStorage(): Promise<AppSettings> {
         Array.isArray(parsed.folders) && parsed.folders.length > 0
           ? parsed.folders
           : DEFAULT_FOLDERS;
-      return { ...DEFAULT_SETTINGS, ...parsed, folders };
+      return {
+        ...DEFAULT_SETTINGS,
+        ...parsed,
+        accentTheme: parsed.accentTheme || 'sapphire',
+        layoutMode: parsed.layoutMode || 'three-column',
+        folders,
+      };
     }
   } catch (e) {
     console.error('Failed to load settings:', e);
@@ -310,3 +324,74 @@ export function htmlToMarkdown(html: string): string {
 
   return walk(temp).replace(/\n{3,}/g, '\n\n').trim();
 }
+
+export function getNoteDateBucket(
+  iso: string
+): 'Today' | 'Yesterday' | 'Previous 7 Days' | 'Previous 30 Days' | 'Earlier' {
+  const date = new Date(iso);
+  if (isNaN(date.getTime())) return 'Earlier';
+
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfYesterday = new Date(startOfToday);
+  startOfYesterday.setDate(startOfToday.getDate() - 1);
+  const startOf7DaysAgo = new Date(startOfToday);
+  startOf7DaysAgo.setDate(startOfToday.getDate() - 7);
+  const startOf30DaysAgo = new Date(startOfToday);
+  startOf30DaysAgo.setDate(startOfToday.getDate() - 30);
+
+  if (date >= startOfToday) {
+    return 'Today';
+  }
+  if (date >= startOfYesterday) {
+    return 'Yesterday';
+  }
+  if (date >= startOf7DaysAgo) {
+    return 'Previous 7 Days';
+  }
+  if (date >= startOf30DaysAgo) {
+    return 'Previous 30 Days';
+  }
+  return 'Earlier';
+}
+
+export function formatAppleNotesTimestamp(iso: string): string {
+  const date = new Date(iso);
+  if (isNaN(date.getTime())) return '';
+
+  const datePart = date.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  const timePart = date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+  return `${datePart} at ${timePart}`;
+}
+
+export function formatShortNoteTime(iso: string): string {
+  const date = new Date(iso);
+  if (isNaN(date.getTime())) return '';
+
+  const bucket = getNoteDateBucket(iso);
+  if (bucket === 'Today') {
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  }
+  if (bucket === 'Yesterday') {
+    return 'Yesterday';
+  }
+  if (bucket === 'Previous 7 Days') {
+    return date.toLocaleDateString('en-US', { weekday: 'long' });
+  }
+  return date.toLocaleDateString('en-US', {
+    month: 'numeric',
+    day: 'numeric',
+    year: '2-digit',
+  });
+}
+

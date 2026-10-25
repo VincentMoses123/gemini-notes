@@ -27,10 +27,16 @@ export type GeminiModel =
   | 'gemini-2.5-pro'
   | string;
 
+export type AccentTheme = 'sapphire' | 'emerald' | 'copper' | 'indigo' | 'slate';
+
+export type LayoutMode = 'three-column' | 'two-column';
+
 export interface AppSettings {
   apiKey: string;
   model: GeminiModel;
   theme: 'dark' | 'light';
+  accentTheme?: AccentTheme;
+  layoutMode?: LayoutMode;
   storagePath?: string;
   folders?: string[];
 }

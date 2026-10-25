@@ -119,11 +119,37 @@ G. ZEN FOCUS WRITING MODE (Cmd + \)
    • Click the Expand icon in the top-right bar (or press Cmd + \) to hide all
      sidebars for a distraction-free writing experience.
 
-H. MARKDOWN EXPORT & DARK/LIGHT THEME
+H. APPLE NOTES 3-COLUMN & 2-COLUMN LAYOUT
+   • 3-Column Split-Pane Architecture:
+     1. Folders & Smart Views Sidebar (Column 1): Browse All Notes, Pinned,
+        Trash, Notebooks (Folders), and #Tags. Toggle Column 1 open or closed
+        anytime using the Sidebar layout button in the top-left header to switch
+        between 3-Column and 2-Column views.
+     2. Chronological Grouped Note List Pane (Column 2): Scannable Apple Notes-
+        style note cards organized into Pinned, Today, Yesterday, Previous 7
+        Days, Previous 30 Days, and Monthly sections with relative date badges,
+        snippet previews, and folder pills.
+     3. Writing Paper Canvas (Column 3): Distraction-free paper surface with a
+        centered Edited/Created timestamp header, clean typography, and a
+        streamlined top formatting & Gemini AI toolbar.
+
+I. 5 SELECTABLE PROFESSIONAL COLOR PALETTES & DARK/LIGHT THEME
+   • Choose from 5 curated professional color palettes that adapt across both
+     Dark Mode and Light Mode:
+     - Ocean Sapphire (Crisp macOS Blue)
+     - Emerald Studio (Botanical Forest Green)
+     - Warm Copper (Editorial Amber & Terracotta)
+     - Royal Indigo (Deep Violet & Iris)
+     - Graphite Slate (Monochrome Pro Neutral)
+   • Switch palettes anytime with one click using the color swatch dots in the
+     bottom-left sidebar footer, or inside Settings (Cmd + ,) under "Workspace
+     Appearance & Color Palette".
+   • Click the Sun/Moon icon in the bottom-left sidebar footer (or inside
+     Settings) to toggle between Dark Mode and Light Mode.
+
+J. MARKDOWN EXPORT
    • Click the Download icon in the top-right bar to export any note as a clean
      Markdown (.md) file.
-   • Click the Sun/Moon icon in the bottom-left sidebar footer to toggle between
-     Dark Mode and Light Mode.
 
 --------------------------------------------------------------------------------
 4. KEYBOARD SHORTCUTS CHEAT SHEET

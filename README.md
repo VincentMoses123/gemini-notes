@@ -4,6 +4,8 @@ A local-first desktop note-taking app built with **Electron + React + TypeScript
 
 ## Features
 
+- **Apple Notes 3-Column & 2-Column Layout**: Native macOS split-pane hierarchy featuring a collapsible Folders, Smart Views & Tags Sidebar (Column 1), a Chronological Grouped Note List Pane with Pinned, Today, Yesterday, Previous 7 Days, and Monthly buckets (Column 2), and a clean Writing Paper Canvas with a centered Edited/Created timestamp header (Column 3). Toggle between 3-column and 2-column layout modes anytime from the header bar.
+- **5 Selectable Professional Color Palettes**: Customize your workspace aesthetic in both Dark and Light modes with 5 curated accent palettes—*Ocean Sapphire*, *Emerald Studio*, *Warm Copper*, *Royal Indigo*, and *Graphite Slate*—accessible directly from the Sidebar swatch bar or Settings (`⌘,`).
 - **Floating Selection AI Toolbar**: Highlight any text in your note to immediately improve writing, summarize, fix grammar, expand, or run a custom prompt.
 - **Slash (`/`) Command Palette**: Type `/` anywhere in the editor to trigger Gemini AI actions (*Continue Writing*, *Summarize Note*, *Extract Action Items*, *Generate Pros & Cons*, *Study Flashcards*, *Explain Simply / ELI5*, *Custom Prompt*) or apply rich block formatting.
 - **Chat with All Notes (`⌘J`)**: Right-hand AI knowledge base drawer that reads across all your active notes, answers questions, cites referenced notes with clickable pills, and saves syntheses as new notes.

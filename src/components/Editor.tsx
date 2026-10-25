@@ -40,14 +40,22 @@ import {
   BookOpen,
   Languages,
   Terminal,
+  PanelLeft,
 } from 'lucide-react';
-import { AIActionType, AppSettings, Note, NoteSnapshot } from '../types';
+import {
+  AccentTheme,
+  AIActionType,
+  AppSettings,
+  LayoutMode,
+  Note,
+  NoteSnapshot,
+} from '../types';
 import {
   generateNoteMetadata,
   markdownToHtml,
   runGeminiAction,
 } from '../services/gemini';
-import { htmlToMarkdown } from '../services/storage';
+import { formatAppleNotesTimestamp, htmlToMarkdown } from '../services/storage';
 import { logEvent } from '../services/logger';
 
 interface EditorProps {
@@ -56,12 +64,16 @@ interface EditorProps {
   settings: AppSettings;
   chatOpen: boolean;
   focusMode: boolean;
+  accentTheme: AccentTheme;
+  layoutMode: LayoutMode;
   onUpdateNote: (updated: Partial<Note>) => void;
   onTrashNote: (id: string) => void;
   onOpenSettings: () => void;
   onOpenLogs: () => void;
   onToggleChat: () => void;
   onToggleFocusMode: () => void;
+  onSelectAccent: (accent: AccentTheme) => void;
+  onToggleLayoutMode: () => void;
 }
 
 interface SlashCommandItem {
@@ -79,12 +91,14 @@ export const Editor: React.FC<EditorProps> = ({
   settings,
   chatOpen,
   focusMode,
+  layoutMode,
   onUpdateNote,
   onTrashNote,
   onOpenSettings,
   onOpenLogs,
   onToggleChat,
   onToggleFocusMode,
+  onToggleLayoutMode,
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const lastLoadedNoteId = useRef<string | null>(null);
@@ -94,6 +108,7 @@ export const Editor: React.FC<EditorProps> = ({
   const [wordStats, setWordStats] = useState({ words: 0, chars: 0 });
   const [autoTagging, setAutoTagging] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [showCreatedDate, setShowCreatedDate] = useState(false);
 
   // Floating selection bubble state
   const [selectionMenu, setSelectionMenu] = useState<{
@@ -158,7 +173,12 @@ export const Editor: React.FC<EditorProps> = ({
       computeStats(note.content || '');
       setSelectionMenu({ visible: false, x: 0, y: 0, selectedText: '' });
       setSlashMenu((prev) => ({ ...prev, open: false }));
-      setAiPanel((prev) => ({ ...prev, open: false, error: null, resultMarkdown: '' }));
+      setAiPanel((prev) => ({
+        ...prev,
+        open: false,
+        error: null,
+        resultMarkdown: '',
+      }));
     }
   }, [note.id, note.content, computeStats]);
 
@@ -194,13 +214,17 @@ export const Editor: React.FC<EditorProps> = ({
   const handleMouseUpOrKeyUp = () => {
     const sel = window.getSelection();
     if (!sel || sel.isCollapsed || !editorRef.current) {
-      setSelectionMenu((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+      setSelectionMenu((prev) =>
+        prev.visible ? { ...prev, visible: false } : prev
+      );
       return;
     }
 
     const text = sel.toString().trim();
     if (!text || text.length < 2) {
-      setSelectionMenu((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+      setSelectionMenu((prev) =>
+        prev.visible ? { ...prev, visible: false } : prev
+      );
       return;
     }
 
@@ -211,7 +235,10 @@ export const Editor: React.FC<EditorProps> = ({
 
     savedRangeRef.current = range.cloneRange();
     const rect = range.getBoundingClientRect();
-    const clampedX = Math.max(280, Math.min(window.innerWidth - 360, rect.left + rect.width / 2));
+    const clampedX = Math.max(
+      280,
+      Math.min(window.innerWidth - 360, rect.left + rect.width / 2)
+    );
     const clampedY = Math.max(70, rect.top - 48);
 
     setSelectionMenu({
@@ -259,7 +286,8 @@ export const Editor: React.FC<EditorProps> = ({
         hasSelection: false,
         loading: false,
         resultMarkdown: '',
-        error: 'Write a few words or a title first so Gemini has context to work with!',
+        error:
+          'Write a few words or a title first so Gemini has context to work with!',
         lastAction: action,
         customPrompt: customInstructionText || '',
       });
@@ -393,7 +421,8 @@ export const Editor: React.FC<EditorProps> = ({
       category: 'ai',
       icon: <MessageCircle size={15} className="accent-icon" />,
       run: () => {
-        const text = editorRef.current?.innerText?.trim() || note.title || 'Brainstorm';
+        const text =
+          editorRef.current?.innerText?.trim() || note.title || 'Brainstorm';
         setAiPanel({
           open: true,
           targetText: text,
@@ -487,7 +516,8 @@ export const Editor: React.FC<EditorProps> = ({
         e.preventDefault();
         setSlashMenu((prev) => ({
           ...prev,
-          selectedIndex: (prev.selectedIndex + 1) % filteredSlashCommands.length,
+          selectedIndex:
+            (prev.selectedIndex + 1) % filteredSlashCommands.length,
         }));
         return;
       }
@@ -698,16 +728,173 @@ export const Editor: React.FC<EditorProps> = ({
 
   return (
     <main className="editor-container">
-      {/* Top Drag Header & Quick Actions */}
+      {/* Unified Apple Notes Top Toolbar */}
       <header className="editor-topbar">
-        <div className="editor-stats">
-          <span>{wordStats.words} words</span>
-          <span className="dot-sep">•</span>
-          <span>{wordStats.chars} chars</span>
-          <span className="dot-sep">•</span>
-          <span>~{readMinutes} min read</span>
+        <div className="editor-topbar-left no-drag">
+          <button
+            type="button"
+            className={`icon-btn ${
+              layoutMode === 'three-column' ? 'active-subtle' : ''
+            }`}
+            onClick={onToggleLayoutMode}
+            title={
+              layoutMode === 'three-column'
+                ? 'Switch to 2-Column Compact Layout'
+                : 'Show Folders Column (3-Column Apple Notes Layout)'
+            }
+          >
+            <PanelLeft size={15} />
+          </button>
+          <div className="editor-stats">
+            <span>{wordStats.words} words</span>
+            <span className="dot-sep">•</span>
+            <span>{readMinutes}m read</span>
+          </div>
         </div>
 
+        {/* Center Segmented Formatting Bar */}
+        <div className="apple-segmented-format-group no-drag">
+          <button
+            type="button"
+            className="format-btn"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              execFormat('formatBlock', 'H1');
+            }}
+            title="Heading 1"
+          >
+            <Heading1 size={14} />
+          </button>
+          <button
+            type="button"
+            className="format-btn"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              execFormat('formatBlock', 'H2');
+            }}
+            title="Heading 2"
+          >
+            <Heading2 size={14} />
+          </button>
+          <button
+            type="button"
+            className="format-btn"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              execFormat('formatBlock', 'H3');
+            }}
+            title="Heading 3"
+          >
+            <Heading3 size={14} />
+          </button>
+
+          <div className="toolbar-divider" />
+
+          <button
+            type="button"
+            className="format-btn"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              execFormat('bold');
+            }}
+            title="Bold (⌘B)"
+          >
+            <Bold size={14} />
+          </button>
+          <button
+            type="button"
+            className="format-btn"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              execFormat('italic');
+            }}
+            title="Italic (⌘I)"
+          >
+            <Italic size={14} />
+          </button>
+          <button
+            type="button"
+            className="format-btn"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              execFormat('underline');
+            }}
+            title="Underline (⌘U)"
+          >
+            <Underline size={14} />
+          </button>
+          <button
+            type="button"
+            className="format-btn"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              execFormat('strikeThrough');
+            }}
+            title="Strikethrough"
+          >
+            <Strikethrough size={14} />
+          </button>
+
+          <div className="toolbar-divider" />
+
+          <button
+            type="button"
+            className="format-btn"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              execFormat('insertUnorderedList');
+            }}
+            title="Bullet List"
+          >
+            <List size={14} />
+          </button>
+          <button
+            type="button"
+            className="format-btn"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              execFormat('insertOrderedList');
+            }}
+            title="Numbered List"
+          >
+            <ListOrdered size={14} />
+          </button>
+          <button
+            type="button"
+            className="format-btn"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              execFormat('formatBlock', 'BLOCKQUOTE');
+            }}
+            title="Quote Block"
+          >
+            <Quote size={14} />
+          </button>
+          <button
+            type="button"
+            className="format-btn"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              execFormat('formatBlock', 'PRE');
+            }}
+            title="Code Block"
+          >
+            <Code size={14} />
+          </button>
+          <button
+            type="button"
+            className="format-btn"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              execFormat('insertHorizontalRule');
+            }}
+            title="Horizontal Divider"
+          >
+            <Minus size={14} />
+          </button>
+        </div>
+
+        {/* Right Actions Group */}
         <div className="editor-topbar-actions no-drag">
           <button
             className="ask-gemini-top-btn"
@@ -727,7 +914,7 @@ export const Editor: React.FC<EditorProps> = ({
               });
             }}
           >
-            <Sparkles size={14} />
+            <Sparkles size={13} />
             <span>Ask Gemini</span>
           </button>
 
@@ -736,8 +923,8 @@ export const Editor: React.FC<EditorProps> = ({
             onClick={onToggleChat}
             title="Chat with All Notes (⌘J)"
           >
-            <MessageSquare size={14} />
-            <span>Chat with Notes</span>
+            <MessageSquare size={13} />
+            <span>Chat</span>
           </button>
 
           <button
@@ -745,7 +932,7 @@ export const Editor: React.FC<EditorProps> = ({
             onClick={() => setHistoryOpen((prev) => !prev)}
             title={`Version Snapshots (${(note.snapshots || []).length})`}
           >
-            <History size={16} />
+            <History size={15} />
           </button>
 
           <button
@@ -757,15 +944,15 @@ export const Editor: React.FC<EditorProps> = ({
                 : 'Enter Zen Focus Mode (⌘\\)'
             }
           >
-            {focusMode ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            {focusMode ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
           </button>
 
           <button
             className={`icon-btn ${note.pinned ? 'pinned-active' : ''}`}
             onClick={() => onUpdateNote({ pinned: !note.pinned })}
-            title={note.pinned ? 'Unpin from Favorites' : 'Pin to Favorites'}
+            title={note.pinned ? 'Unpin Note' : 'Pin Note'}
           >
-            <Star size={16} fill={note.pinned ? 'currentColor' : 'none'} />
+            <Star size={15} fill={note.pinned ? 'currentColor' : 'none'} />
           </button>
 
           <button
@@ -773,7 +960,7 @@ export const Editor: React.FC<EditorProps> = ({
             onClick={handleExportMarkdown}
             title="Export Note as Markdown (.md)"
           >
-            <Download size={16} />
+            <Download size={15} />
           </button>
 
           <button
@@ -781,161 +968,26 @@ export const Editor: React.FC<EditorProps> = ({
             onClick={() => onTrashNote(note.id)}
             title="Move Note to Trash"
           >
-            <Trash2 size={16} />
+            <Trash2 size={15} />
           </button>
         </div>
       </header>
 
-      {/* Rich Formatting Bar */}
-      <div className="formatting-toolbar">
-        <button
-          type="button"
-          className="format-btn"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            execFormat('formatBlock', 'H1');
-          }}
-          title="Heading 1"
-        >
-          <Heading1 size={15} />
-        </button>
-        <button
-          type="button"
-          className="format-btn"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            execFormat('formatBlock', 'H2');
-          }}
-          title="Heading 2"
-        >
-          <Heading2 size={15} />
-        </button>
-        <button
-          type="button"
-          className="format-btn"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            execFormat('formatBlock', 'H3');
-          }}
-          title="Heading 3"
-        >
-          <Heading3 size={15} />
-        </button>
-
-        <div className="toolbar-divider" />
-
-        <button
-          type="button"
-          className="format-btn"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            execFormat('bold');
-          }}
-          title="Bold (⌘B)"
-        >
-          <Bold size={15} />
-        </button>
-        <button
-          type="button"
-          className="format-btn"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            execFormat('italic');
-          }}
-          title="Italic (⌘I)"
-        >
-          <Italic size={15} />
-        </button>
-        <button
-          type="button"
-          className="format-btn"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            execFormat('underline');
-          }}
-          title="Underline (⌘U)"
-        >
-          <Underline size={15} />
-        </button>
-        <button
-          type="button"
-          className="format-btn"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            execFormat('strikeThrough');
-          }}
-          title="Strikethrough"
-        >
-          <Strikethrough size={15} />
-        </button>
-
-        <div className="toolbar-divider" />
-
-        <button
-          type="button"
-          className="format-btn"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            execFormat('insertUnorderedList');
-          }}
-          title="Bullet List"
-        >
-          <List size={15} />
-        </button>
-        <button
-          type="button"
-          className="format-btn"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            execFormat('insertOrderedList');
-          }}
-          title="Numbered List"
-        >
-          <ListOrdered size={15} />
-        </button>
-        <button
-          type="button"
-          className="format-btn"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            execFormat('formatBlock', 'BLOCKQUOTE');
-          }}
-          title="Quote Block"
-        >
-          <Quote size={15} />
-        </button>
-        <button
-          type="button"
-          className="format-btn"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            execFormat('formatBlock', 'PRE');
-          }}
-          title="Code Block"
-        >
-          <Code size={15} />
-        </button>
-        <button
-          type="button"
-          className="format-btn"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            execFormat('insertHorizontalRule');
-          }}
-          title="Horizontal Divider"
-        >
-          <Minus size={15} />
-        </button>
-
-        <div className="toolbar-spacer" />
-        <span className="slash-hint">
-          Tip: Select text for AI tools or type <code>/</code> for commands
-        </span>
-      </div>
-
       {/* Main Scrollable Writing Surface */}
       <div className="editor-scroll-area">
         <div className="editor-paper">
+          {/* Apple Notes Centered Date/Time Header */}
+          <div
+            className="apple-note-timestamp"
+            onClick={() => setShowCreatedDate((prev) => !prev)}
+            title="Click to toggle between Edited and Created date"
+          >
+            {showCreatedDate ? 'Created' : 'Edited'}{' '}
+            {formatAppleNotesTimestamp(
+              showCreatedDate ? note.createdAt : note.updatedAt
+            )}
+          </div>
+
           <input
             type="text"
             className="note-title-input"
@@ -950,7 +1002,7 @@ export const Editor: React.FC<EditorProps> = ({
               <select
                 value={note.folder || 'General'}
                 onChange={(e) => onUpdateNote({ folder: e.target.value })}
-                title="Move Note to Notebook Folder"
+                title="Move Note to Folder"
               >
                 {folders.map((f) => (
                   <option key={f} value={f}>
@@ -1031,7 +1083,7 @@ export const Editor: React.FC<EditorProps> = ({
                   </button>
                 </div>
               </div>
-              {(!note.snapshots || note.snapshots.length === 0) ? (
+              {!note.snapshots || note.snapshots.length === 0 ? (
                 <p className="snapshots-empty-text">
                   No snapshots saved yet. Snapshots are created automatically
                   before AI replacements or when you click "Save Checkpoint".
@@ -1075,7 +1127,9 @@ export const Editor: React.FC<EditorProps> = ({
                 </div>
                 <button
                   className="icon-mini-btn"
-                  onClick={() => setAiPanel((prev) => ({ ...prev, open: false }))}
+                  onClick={() =>
+                    setAiPanel((prev) => ({ ...prev, open: false }))
+                  }
                 >
                   <X size={15} />
                 </button>

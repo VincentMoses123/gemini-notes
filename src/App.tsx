@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { FilePlus, LayoutTemplate, Sparkles } from 'lucide-react';
-import { AppSettings, LogEntry, Note } from './types';
+import { AccentTheme, AppSettings, LogEntry, Note } from './types';
 import {
   DEFAULT_FOLDERS,
   DEFAULT_SETTINGS,
@@ -56,10 +56,14 @@ export const App: React.FC = () => {
     return unsubscribe;
   }, []);
 
-  // Apply theme attribute to document root
+  // Apply theme and accent attributes to document root
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', settings.theme);
-  }, [settings.theme]);
+    document.documentElement.setAttribute(
+      'data-accent',
+      settings.accentTheme || 'sapphire'
+    );
+  }, [settings.theme, settings.accentTheme]);
 
   // Save notes whenever they change
   useEffect(() => {
@@ -225,7 +229,9 @@ export const App: React.FC = () => {
     logEvent({
       level: 'info',
       source: 'system',
-      message: `Saved Gemini Settings (model: ${newSettings.model})`,
+      message: `Saved Gemini Settings (model: ${newSettings.model}, accent: ${
+        newSettings.accentTheme || 'sapphire'
+      })`,
     });
   };
 
@@ -245,9 +251,23 @@ export const App: React.FC = () => {
     handleSaveSettings({ ...settings, theme: nextTheme });
   };
 
+  const handleSelectAccent = (accent: AccentTheme) => {
+    handleSaveSettings({ ...settings, accentTheme: accent });
+  };
+
+  const handleToggleLayoutMode = () => {
+    const nextMode =
+      (settings.layoutMode || 'three-column') === 'three-column'
+        ? 'two-column'
+        : 'three-column';
+    handleSaveSettings({ ...settings, layoutMode: nextMode });
+  };
+
   const activeNote = notes.find((n) => n.id === activeNoteId) || null;
   const folders = settings.folders || DEFAULT_FOLDERS;
   const errorCount = logs.filter((l) => l.level === 'error').length;
+  const currentAccent = settings.accentTheme || 'sapphire';
+  const currentLayout = settings.layoutMode || 'three-column';
 
   return (
     <div className="app-shell">
@@ -263,6 +283,8 @@ export const App: React.FC = () => {
           hasApiKey={Boolean(settings.apiKey?.trim())}
           errorCount={errorCount}
           theme={settings.theme}
+          accentTheme={currentAccent}
+          layoutMode={currentLayout}
           onSelectNote={setActiveNoteId}
           onCreateNote={handleCreateNote}
           onOpenTemplates={() => setTemplatesOpen(true)}
@@ -275,6 +297,8 @@ export const App: React.FC = () => {
           onOpenLogs={() => setLogsOpen(true)}
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
           onToggleTheme={handleToggleTheme}
+          onSelectAccent={handleSelectAccent}
+          onToggleLayoutMode={handleToggleLayoutMode}
           onRestoreNote={handleRestoreNote}
           onDeletePermanently={handleDeletePermanently}
         />
@@ -287,12 +311,16 @@ export const App: React.FC = () => {
           settings={settings}
           chatOpen={chatOpen}
           focusMode={focusMode}
+          accentTheme={currentAccent}
+          layoutMode={currentLayout}
           onUpdateNote={handleUpdateActiveNote}
           onTrashNote={handleTrashNote}
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenLogs={() => setLogsOpen(true)}
           onToggleChat={() => setChatOpen((prev) => !prev)}
           onToggleFocusMode={() => setFocusMode((prev) => !prev)}
+          onSelectAccent={handleSelectAccent}
+          onToggleLayoutMode={handleToggleLayoutMode}
         />
       ) : (
         <div className="empty-editor-state">
