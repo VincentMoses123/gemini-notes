@@ -729,16 +729,24 @@ export const Editor: React.FC<EditorProps> = ({
   return (
     <main className="editor-container">
       {/* Unified Apple Notes Top Toolbar */}
-      <header className="editor-topbar">
+      <header className={`editor-topbar ${focusMode ? 'focus-mode-topbar' : ''}`}>
         <div className="editor-topbar-left no-drag">
           <button
             type="button"
             className={`icon-btn ${
-              layoutMode === 'three-column' ? 'active-subtle' : ''
+              !focusMode && layoutMode === 'three-column' ? 'active-subtle' : ''
             }`}
-            onClick={onToggleLayoutMode}
+            onClick={() => {
+              if (focusMode) {
+                onToggleFocusMode();
+              } else {
+                onToggleLayoutMode();
+              }
+            }}
             title={
-              layoutMode === 'three-column'
+              focusMode
+                ? 'Show Sidebar (Exit Focus Mode)'
+                : layoutMode === 'three-column'
                 ? 'Switch to 2-Column Compact Layout'
                 : 'Show Folders Column (3-Column Apple Notes Layout)'
             }
