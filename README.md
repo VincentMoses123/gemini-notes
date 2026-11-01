@@ -46,10 +46,13 @@ npm install
 npm start
 ```
 
-### Build Standalone macOS `.app`
+### Build Standalone macOS `.app` (Apple Silicon & Universal)
 
 ```bash
-npm run package:mac
+npm run package:mac            # Builds Universal macOS binary (arm64 + x86_64)
+npm run package:mac:arm64      # Builds native Apple Silicon (arm64) binary
+npm run package:mac:x64        # Builds Intel (x86_64) binary
+npm run package:mac:universal  # Builds Universal macOS fat binary
 ```
 
 Outputs a signed standalone application bundle at `release/Gemini Notes.app`.

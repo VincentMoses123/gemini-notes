@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   X,
   Key,
@@ -13,8 +13,15 @@ import {
   Columns,
   Sun,
   Moon,
+  Cpu,
 } from 'lucide-react';
-import { AccentTheme, AppSettings, GeminiModel, LayoutMode } from '../types';
+import {
+  AccentTheme,
+  AppSettings,
+  GeminiModel,
+  LayoutMode,
+  SystemInfo,
+} from '../types';
 import { runGeminiAction } from '../services/gemini';
 import { ACCENT_SWATCHES } from './Sidebar';
 
@@ -22,6 +29,20 @@ interface SettingsModalProps {
   settings: AppSettings;
   onSave: (newSettings: AppSettings) => void;
   onClose: () => void;
+}
+
+export function formatArchLabel(arch?: string): string {
+  const normalized = (arch || 'arm64').toLowerCase();
+  if (normalized === 'arm64' || normalized.includes('arm')) {
+    return 'Apple Silicon (arm64)';
+  }
+  if (normalized === 'x64' || normalized === 'x86_64') {
+    return 'Intel (x64)';
+  }
+  if (normalized === 'universal') {
+    return 'Universal macOS (arm64 + x64)';
+  }
+  return `macOS (${normalized})`;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -48,6 +69,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     ok: boolean;
     message: string;
   } | null>(null);
+  const [systemInfo, setSystemInfo] = useState<SystemInfo>({
+    arch: window.electronAPI?.arch || settings.arch || 'arm64',
+    platform: window.electronAPI?.platform || settings.platform || 'darwin',
+  });
+
+  useEffect(() => {
+    let mounted = true;
+    if (window.electronAPI?.getSystemInfo) {
+      window.electronAPI
+        .getSystemInfo()
+        .then((info) => {
+          if (mounted && info) {
+            setSystemInfo(info);
+          }
+        })
+        .catch(() => {
+          // ignore fallback
+        });
+    }
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,6 +142,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       window.electronAPI.openStorageFolder();
     }
   };
+
+  const archLabel = formatArchLabel(systemInfo.arch || settings.arch);
+  const isArm64 = (systemInfo.arch || settings.arch || 'arm64')
+    .toLowerCase()
+    .includes('arm');
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -299,12 +348,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             )}
           </div>
 
-          {window.electronAPI && (
-            <div className="form-group storage-info-box">
-              <div>
-                <strong>Local Storage Location</strong>
-                <p className="form-hint">{settings.storagePath}</p>
+          {/* System Architecture & Storage Diagnostics Box */}
+          <div className="form-group storage-info-box">
+            <div className="system-storage-details">
+              <div className="system-arch-row">
+                <strong>Runtime Architecture</strong>
+                <span
+                  className={`arch-badge ${
+                    isArm64 ? 'apple-silicon' : 'intel'
+                  }`}
+                  title="Native macOS process architecture"
+                >
+                  <Cpu size={12} />
+                  <span>{archLabel}</span>
+                </span>
               </div>
+              <p className="form-hint">
+                Storage: {settings.storagePath || 'Local App Data'}
+              </p>
+            </div>
+            {window.electronAPI && (
               <button
                 type="button"
                 className="secondary-btn"
@@ -313,8 +376,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <FolderOpen size={14} />
                 <span>Show in Finder</span>
               </button>
-            </div>
-          )}
+            )}
+          </div>
 
           <div className="modal-footer">
             <button type="button" className="secondary-btn" onClick={onClose}>

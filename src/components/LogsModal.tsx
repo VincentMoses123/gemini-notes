@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   X,
   Terminal,
@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { LogEntry } from '../types';
 import { ERROR_CODE_CATALOG, clearAllLogs } from '../services/logger';
+import { formatArchLabel } from './SettingsModal';
 
 interface LogsModalProps {
   logs: LogEntry[];
@@ -25,6 +26,26 @@ export const LogsModal: React.FC<LogsModalProps> = ({ logs, onClose }) => {
   const [activeTab, setActiveTab] = useState<'logs' | 'codes'>('logs');
   const [levelFilter, setLevelFilter] = useState<'all' | 'error' | 'warn' | 'info'>('all');
   const [copied, setCopied] = useState(false);
+  const [arch, setArch] = useState<string>(window.electronAPI?.arch || 'arm64');
+
+  useEffect(() => {
+    let mounted = true;
+    if (window.electronAPI?.getSystemInfo) {
+      window.electronAPI
+        .getSystemInfo()
+        .then((info) => {
+          if (mounted && info?.arch) {
+            setArch(info.arch);
+          }
+        })
+        .catch(() => {
+          // ignore
+        });
+    }
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const filteredLogs = logs.filter((entry) => {
     if (levelFilter === 'all') return true;
@@ -56,6 +77,10 @@ export const LogsModal: React.FC<LogsModalProps> = ({ logs, onClose }) => {
           <div className="modal-title-group">
             <Terminal size={18} className="accent-icon" />
             <h3>Diagnostics, Activity Logs & Error Codes</h3>
+            <span className="arch-badge apple-silicon" title="Process Architecture">
+              <Cpu size={11} />
+              <span>{formatArchLabel(arch)}</span>
+            </span>
           </div>
           <div className="logs-header-actions">
             {window.electronAPI && (

@@ -1535,6 +1535,41 @@ code {
   border-radius: 8px;
   border: 1px solid var(--border-color);
   font-size: 12.5px;
+  gap: 10px;
+}
+
+.system-storage-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.system-arch-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.arch-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--border-strong);
+}
+
+.arch-badge.apple-silicon {
+  background: rgba(16, 185, 129, 0.14);
+  color: var(--success);
+  border-color: rgba(16, 185, 129, 0.35);
 }
 
 .modal-footer {

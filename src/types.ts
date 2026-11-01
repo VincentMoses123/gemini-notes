@@ -31,6 +31,15 @@ export type AccentTheme = 'sapphire' | 'emerald' | 'copper' | 'indigo' | 'slate'
 
 export type LayoutMode = 'three-column' | 'two-column';
 
+export interface SystemInfo {
+  arch: string;
+  platform: string;
+  electronVersion?: string;
+  nodeVersion?: string;
+  chromeVersion?: string;
+  isAppleSilicon?: boolean;
+}
+
 export interface AppSettings {
   apiKey: string;
   model: GeminiModel;
@@ -39,6 +48,8 @@ export interface AppSettings {
   layoutMode?: LayoutMode;
   storagePath?: string;
   folders?: string[];
+  arch?: string;
+  platform?: string;
 }
 
 export type AIActionType =
@@ -110,6 +121,9 @@ export interface ErrorCodeDefinition {
 }
 
 export interface ElectronAPI {
+  arch?: string;
+  platform?: string;
+  getSystemInfo?: () => Promise<SystemInfo>;
   loadNotes: () => Promise<Note[] | null>;
   saveNotes: (notes: Note[]) => Promise<{ ok: boolean; path?: string; error?: string }>;
   loadSettings: () => Promise<AppSettings>;

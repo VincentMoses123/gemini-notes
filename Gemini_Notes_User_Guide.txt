@@ -16,9 +16,11 @@ integrated Google Gemini AI assistant.
 
 • Developer Mode (from Terminal):
   cd "/Users/vincentmoses/Desktop/New project/gemini-notes"
-  npm start        (builds and launches the app)
-  npm run dev      (runs with live hot-reloading)
-  npm run package:mac (rebuilds the standalone "Gemini Notes.app")
+  npm start                   (builds and launches the app)
+  npm run dev                 (runs with live hot-reloading)
+  npm run package:mac         (builds Universal arm64 + x86_64 "Gemini Notes.app")
+  npm run package:mac:arm64   (builds Apple Silicon native arm64 "Gemini Notes.app")
+  npm run package:mac:x64     (builds Intel x86_64 "Gemini Notes.app")
 
 • GitHub Repository & Branch Workflow (test -> main):
   https://github.com/VincentMoses123/gemini-notes

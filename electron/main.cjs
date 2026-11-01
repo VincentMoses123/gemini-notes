@@ -78,7 +78,59 @@ function createWindow() {
   }
 }
 
+function recordStartupDiagnostics() {
+  const archLabel =
+    process.arch === 'arm64'
+      ? 'Apple Silicon Native (arm64)'
+      : `Intel / Translated (${process.arch})`;
+  const details = `Platform: ${process.platform} | Arch: ${process.arch} (${archLabel}) | Electron: ${process.versions.electron} | Node: ${process.versions.node}`;
+  console.log(`[Gemini Notes] Runtime initialized — ${details}`);
+
+  try {
+    const filePath = getLogsFilePath();
+    let existing = [];
+    if (fs.existsSync(filePath)) {
+      try {
+        existing = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      } catch {
+        existing = [];
+      }
+    }
+    const list = Array.isArray(existing) ? existing : [];
+    const entry = {
+      id: `log-startup-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      level: 'info',
+      source: 'system',
+      message: `Gemini Notes runtime initialized — ${archLabel}`,
+      details,
+    };
+    const filtered = list.filter(
+      (item, idx) =>
+        !(idx === 0 && item && item.source === 'system' && String(item.message || '').startsWith('Gemini Notes runtime initialized'))
+    );
+    const updated = [entry, ...filtered].slice(0, 250);
+    fs.writeFileSync(filePath, JSON.stringify(updated, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('Could not write startup diagnostics log:', err.message);
+  }
+}
+
 app.whenReady().then(() => {
+  recordStartupDiagnostics();
+
+  // IPC: System architecture & runtime info
+  ipcMain.handle('system:info', async () => {
+    return {
+      arch: process.arch,
+      platform: process.platform,
+      electronVersion: process.versions.electron,
+      nodeVersion: process.versions.node,
+      chromeVersion: process.versions.chrome,
+      isAppleSilicon: process.platform === 'darwin' && process.arch === 'arm64',
+    };
+  });
+
   // IPC: Load notes
   ipcMain.handle('notes:load', async () => {
     try {
@@ -119,6 +171,8 @@ app.whenReady().then(() => {
           accentTheme: 'sapphire',
           layoutMode: 'three-column',
           storagePath: getStorageDir(),
+          arch: process.arch,
+          platform: process.platform,
         };
       }
       const saved = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
@@ -136,6 +190,8 @@ app.whenReady().then(() => {
         layoutMode: saved.layoutMode || 'three-column',
         folders: saved.folders,
         storagePath: getStorageDir(),
+        arch: process.arch,
+        platform: process.platform,
       };
     } catch (err) {
       console.error('Error loading settings:', err);
@@ -146,6 +202,8 @@ app.whenReady().then(() => {
         accentTheme: 'sapphire',
         layoutMode: 'three-column',
         storagePath: getStorageDir(),
+        arch: process.arch,
+        platform: process.platform,
       };
     }
   });
