@@ -1,8 +1,78 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
 app.setName('Gemini Notes');
+
+/**
+ * Redacts sensitive credentials (Gemini API keys, query params, Bearer tokens)
+ * from strings before saving or printing to logs.
+ */
+function redactSensitiveData(str) {
+  if (typeof str !== 'string') return str;
+  return str
+    .replace(/AIza[0-9A-Za-z-_]{30,45}/g, 'AIzaSy***REDACTED***')
+    .replace(/([?&]key=)[^&\s"']+/gi, '$1***REDACTED***')
+    .replace(/(Bearer\s+)[A-Za-z0-9_\-\.]{10,}/gi, '$1***REDACTED***')
+    .replace(/(api[_-]?key["']?\s*[:=]\s*["']?)[^"',\s}{]+/gi, '$1***REDACTED***');
+}
+
+/**
+ * Deeply sanitizes a log entry object.
+ */
+function sanitizeLogEntry(entry) {
+  if (!entry || typeof entry !== 'object') return entry;
+  return {
+    ...entry,
+    message: redactSensitiveData(entry.message),
+    details: typeof entry.details === 'string' ? redactSensitiveData(entry.details) : entry.details,
+  };
+}
+
+/**
+ * Safely opens external URLs in the user's default browser,
+ * strictly validating that the scheme is http: or https:.
+ * Denies file:, javascript:, data:, vbscript:, etc.
+ */
+function safeOpenExternal(rawUrl) {
+  if (!rawUrl || typeof rawUrl !== 'string') return false;
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+      shell.openExternal(rawUrl).catch((err) => {
+        console.warn('[Security] Failed to open external URL:', err.message);
+      });
+      return true;
+    }
+  } catch {
+    // Malformed URL
+  }
+  console.warn(`[Security] Blocked external navigation to untrusted protocol/URL: ${rawUrl}`);
+  return false;
+}
+
+/**
+ * Validates whether a navigation URL is within the authorized local application boundaries.
+ */
+function isAllowedLocalNavigation(targetUrl, indexHtmlPath) {
+  try {
+    const parsed = new URL(targetUrl);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return (
+        (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') &&
+        parsed.port === '5173'
+      );
+    }
+    if (parsed.protocol === 'file:') {
+      const normalizedTarget = path.normalize(decodeURIComponent(parsed.pathname));
+      const normalizedDist = path.normalize(indexHtmlPath);
+      return normalizedTarget === normalizedDist;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
 
 function getStorageDir() {
   // Always use the consistent 'gemini-notes' folder in Application Support so dev and standalone .app share notes, API keys, and logs
@@ -57,11 +127,41 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
+      nodeIntegrationInWorker: false,
+      sandbox: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      webviewTag: false,
+      navigateOnDragDrop: false,
+      spellcheck: true,
     },
   });
 
   const devUrl = 'http://localhost:5173';
   const indexHtml = path.join(__dirname, '../dist/index.html');
+
+  // Prevent navigation hijacking: block arbitrary top-level navigation to foreign origins
+  win.webContents.on('will-navigate', (event, targetUrl) => {
+    if (isAllowedLocalNavigation(targetUrl, indexHtml)) {
+      return;
+    }
+    event.preventDefault();
+    safeOpenExternal(targetUrl);
+  });
+
+  // Block creation of arbitrary child windows and delegate links to safe external browser
+  win.webContents.setWindowOpenHandler(({ url: targetUrl }) => {
+    safeOpenExternal(targetUrl);
+    return { action: 'deny' };
+  });
+
+  // Guard against unprivileged in-frame navigation
+  win.webContents.on('will-frame-navigate', (event) => {
+    if (!event.isMainFrame && !isAllowedLocalNavigation(event.url, indexHtml)) {
+      event.preventDefault();
+    }
+  });
+
   const preferDist =
     app.isPackaged ||
     process.env.USE_DIST === 'true' ||
@@ -102,21 +202,63 @@ function recordStartupDiagnostics() {
       timestamp: new Date().toISOString(),
       level: 'info',
       source: 'system',
-      message: `Gemini Notes runtime initialized — ${archLabel}`,
-      details,
+      message: redactSensitiveData(`Gemini Notes runtime initialized — ${archLabel}`),
+      details: redactSensitiveData(details),
     };
     const filtered = list.filter(
       (item, idx) =>
         !(idx === 0 && item && item.source === 'system' && String(item.message || '').startsWith('Gemini Notes runtime initialized'))
     );
     const updated = [entry, ...filtered].slice(0, 250);
-    fs.writeFileSync(filePath, JSON.stringify(updated, null, 2), 'utf-8');
+    fs.writeFileSync(filePath, JSON.stringify(updated, null, 2), { encoding: 'utf-8', mode: 0o600 });
   } catch (err) {
     console.warn('Could not write startup diagnostics log:', err.message);
   }
 }
 
 app.whenReady().then(() => {
+  // Session Security: Enforce strict CSP headers for loaded documents and assets
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    const isDev =
+      !app.isPackaged &&
+      !process.argv.includes('--use-dist') &&
+      process.env.USE_DIST !== 'true';
+
+    const csp = isDev
+      ? "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:5173; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http://localhost:5173 ws://localhost:5173 https://generativelanguage.googleapis.com; object-src 'none'; base-uri 'self';"
+      : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://generativelanguage.googleapis.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';";
+
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [csp],
+        'X-Content-Type-Options': ['nosniff'],
+        'X-Frame-Options': ['DENY'],
+      },
+    });
+  });
+
+  // Session Security: Intercept and deny unnecessary native permission requests
+  const ALLOWED_PERMISSIONS = new Set(['clipboard-sanitized-write']);
+  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+    if (ALLOWED_PERMISSIONS.has(permission)) {
+      return callback(true);
+    }
+    console.warn(`[Security] Denied permission request for: ${permission}`);
+    callback(false);
+  });
+
+  session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
+    return ALLOWED_PERMISSIONS.has(permission);
+  });
+
+  // Block creation of arbitrary webviews
+  app.on('web-contents-created', (_event, contents) => {
+    contents.on('will-attach-webview', (event) => {
+      event.preventDefault();
+    });
+  });
+
   recordStartupDiagnostics();
 
   // IPC: System architecture & runtime info
@@ -150,7 +292,7 @@ app.whenReady().then(() => {
   ipcMain.handle('notes:save', async (_event, notes) => {
     try {
       const filePath = getNotesFilePath();
-      fs.writeFileSync(filePath, JSON.stringify(notes, null, 2), 'utf-8');
+      fs.writeFileSync(filePath, JSON.stringify(notes, null, 2), { encoding: 'utf-8', mode: 0o600 });
       return { ok: true, path: filePath };
     } catch (err) {
       console.error('Error saving notes:', err);
@@ -212,7 +354,7 @@ app.whenReady().then(() => {
   ipcMain.handle('settings:save', async (_event, settings) => {
     try {
       const filePath = getSettingsFilePath();
-      fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), 'utf-8');
+      fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), { encoding: 'utf-8', mode: 0o600 });
       return { ok: true };
     } catch (err) {
       console.error('Error saving settings:', err);
@@ -234,6 +376,7 @@ app.whenReady().then(() => {
   // IPC: Append a log entry to app-logs.json
   ipcMain.handle('logs:append', async (_event, entry) => {
     try {
+      const sanitizedEntry = sanitizeLogEntry(entry);
       const filePath = getLogsFilePath();
       let existing = [];
       if (fs.existsSync(filePath)) {
@@ -243,8 +386,8 @@ app.whenReady().then(() => {
           existing = [];
         }
       }
-      const updated = [entry, ...(Array.isArray(existing) ? existing : [])].slice(0, 250);
-      fs.writeFileSync(filePath, JSON.stringify(updated, null, 2), 'utf-8');
+      const updated = [sanitizedEntry, ...(Array.isArray(existing) ? existing : [])].slice(0, 250);
+      fs.writeFileSync(filePath, JSON.stringify(updated, null, 2), { encoding: 'utf-8', mode: 0o600 });
       return { ok: true };
     } catch (err) {
       return { ok: false, error: err.message };
@@ -255,7 +398,7 @@ app.whenReady().then(() => {
   ipcMain.handle('logs:clear', async () => {
     try {
       const filePath = getLogsFilePath();
-      fs.writeFileSync(filePath, '[]', 'utf-8');
+      fs.writeFileSync(filePath, '[]', { encoding: 'utf-8', mode: 0o600 });
       return { ok: true };
     } catch (err) {
       return { ok: false, error: err.message };
@@ -424,8 +567,9 @@ app.whenReady().then(() => {
       const durationMs = Date.now() - startTime;
 
       if (!response.ok) {
-        const errMessage =
+        const rawErrMessage =
           data?.error?.message || `Gemini API returned HTTP ${response.status}`;
+        const errMessage = redactSensitiveData(rawErrMessage);
         return {
           ok: false,
           httpStatus: response.status,
@@ -465,7 +609,7 @@ app.whenReady().then(() => {
       return {
         ok: false,
         errorCode: 'GN-NET-001',
-        error: err.message || 'Network error while contacting Gemini API.',
+        error: redactSensitiveData(err.message || 'Network error while contacting Gemini API.'),
         durationMs: Date.now() - startTime,
       };
     }

@@ -19,7 +19,7 @@ import {
   Hash,
 } from 'lucide-react';
 import { AccentTheme, LayoutMode, Note } from '../types';
-import { formatShortNoteTime, getNoteDateBucket } from '../services/storage';
+import { formatShortNoteTime, getNoteDateBucket, stripHtmlToText } from '../services/storage';
 
 export type FilterView = 'all' | 'pinned' | 'trash';
 
@@ -71,10 +71,8 @@ interface SidebarProps {
 }
 
 function stripHtmlPreview(html: string): string {
-  const tmp = document.createElement('div');
-  tmp.innerHTML = html;
-  const text = tmp.textContent || tmp.innerText || '';
-  return text.replace(/\s+/g, ' ').trim() || 'No additional text';
+  const text = stripHtmlToText(html);
+  return text || 'No additional text';
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({

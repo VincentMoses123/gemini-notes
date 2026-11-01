@@ -3,6 +3,28 @@ import { ErrorCode, ErrorCodeDefinition, LogEntry, LogLevel } from '../types';
 const LOGS_STORAGE_KEY = 'gemini_notes_logs_v1';
 const MAX_LOGS = 250;
 
+/**
+ * Redacts sensitive credentials (Google/Gemini API keys, bearer tokens, query parameters)
+ * to prevent accidental credential leakage in logs or crash dumps.
+ */
+export function redactSensitiveString(str?: string): string {
+  if (!str || typeof str !== 'string') return str || '';
+  return str
+    .replace(/AIza[0-9A-Za-z-_]{30,45}/g, 'AIzaSy***REDACTED***')
+    .replace(/([?&]key=)[^&\s"']+/gi, '$1***REDACTED***')
+    .replace(/(Bearer\s+)[A-Za-z0-9_\-\.]{10,}/gi, '$1***REDACTED***')
+    .replace(/(api[_-]?key["']?\s*[:=]\s*["']?)[^"',\s}{]+/gi, '$1***REDACTED***');
+}
+
+export function sanitizeLogEntry(entry: LogEntry): LogEntry {
+  if (!entry || typeof entry !== 'object') return entry;
+  return {
+    ...entry,
+    message: redactSensitiveString(entry.message),
+    details: entry.details ? redactSensitiveString(entry.details) : undefined,
+  };
+}
+
 export const ERROR_CODE_CATALOG: ErrorCodeDefinition[] = [
   {
     code: 'GN-AUTH-001',
@@ -133,7 +155,7 @@ export async function initLogger(): Promise<LogEntry[]> {
     try {
       const diskLogs = await window.electronAPI.loadLogs();
       if (Array.isArray(diskLogs)) {
-        memoryLogs = diskLogs.slice(0, MAX_LOGS);
+        memoryLogs = diskLogs.map(sanitizeLogEntry).slice(0, MAX_LOGS);
         notifyListeners();
         return memoryLogs;
       }
@@ -147,7 +169,7 @@ export async function initLogger(): Promise<LogEntry[]> {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        memoryLogs = parsed.slice(0, MAX_LOGS);
+        memoryLogs = parsed.map(sanitizeLogEntry).slice(0, MAX_LOGS);
       }
     }
   } catch {
@@ -184,9 +206,9 @@ export async function logEvent(params: {
     timestamp: new Date().toISOString(),
     level: params.level,
     source: params.source,
-    message: params.message,
+    message: redactSensitiveString(params.message),
     code: params.code,
-    details: params.details,
+    details: params.details ? redactSensitiveString(params.details) : undefined,
     durationMs: params.durationMs,
     model: params.model,
   };

@@ -55,8 +55,9 @@ import {
   markdownToHtml,
   runGeminiAction,
 } from '../services/gemini';
-import { formatAppleNotesTimestamp, htmlToMarkdown } from '../services/storage';
+import { formatAppleNotesTimestamp, htmlToMarkdown, stripHtmlToText } from '../services/storage';
 import { logEvent } from '../services/logger';
+import { sanitizeHtml } from '../services/sanitizer';
 
 interface EditorProps {
   note: Note;
@@ -157,9 +158,7 @@ export const Editor: React.FC<EditorProps> = ({
   const [copiedFeedback, setCopiedFeedback] = useState(false);
 
   const computeStats = useCallback((html: string) => {
-    const tmp = document.createElement('div');
-    tmp.innerHTML = html;
-    const text = (tmp.textContent || tmp.innerText || '').trim();
+    const text = stripHtmlToText(html);
     const chars = text.length;
     const words = text ? text.split(/\s+/).length : 0;
     setWordStats({ words, chars });
@@ -168,7 +167,7 @@ export const Editor: React.FC<EditorProps> = ({
   // Load content into contentEditable when switching notes
   useEffect(() => {
     if (editorRef.current && lastLoadedNoteId.current !== note.id) {
-      editorRef.current.innerHTML = note.content || '<p><br></p>';
+      editorRef.current.innerHTML = sanitizeHtml(note.content || '<p><br></p>');
       lastLoadedNoteId.current = note.id;
       computeStats(note.content || '');
       setSelectionMenu({ visible: false, x: 0, y: 0, selectedText: '' });
@@ -604,11 +603,12 @@ export const Editor: React.FC<EditorProps> = ({
 
   const handleRestoreSnapshot = (snap: NoteSnapshot) => {
     createSnapshot('Before Snapshot Restore');
+    const safeContent = sanitizeHtml(snap.content);
     if (editorRef.current) {
-      editorRef.current.innerHTML = snap.content;
+      editorRef.current.innerHTML = safeContent;
     }
-    onUpdateNote({ title: snap.title, content: snap.content });
-    computeStats(snap.content);
+    onUpdateNote({ title: snap.title, content: safeContent });
+    computeStats(safeContent);
     setHistoryOpen(false);
   };
 
@@ -616,7 +616,7 @@ export const Editor: React.FC<EditorProps> = ({
   const handleReplaceSelection = () => {
     if (!editorRef.current || !aiPanel.resultMarkdown) return;
     createSnapshot('Before AI Replace');
-    const html = markdownToHtml(aiPanel.resultMarkdown);
+    const html = sanitizeHtml(markdownToHtml(aiPanel.resultMarkdown));
 
     editorRef.current.focus();
     if (aiPanel.hasSelection && savedRangeRef.current) {
@@ -633,7 +633,7 @@ export const Editor: React.FC<EditorProps> = ({
   // Insert Gemini's result below the current selection or at the bottom of the note
   const handleInsertBelow = () => {
     if (!editorRef.current || !aiPanel.resultMarkdown) return;
-    const html = markdownToHtml(aiPanel.resultMarkdown);
+    const html = sanitizeHtml(markdownToHtml(aiPanel.resultMarkdown));
 
     editorRef.current.focus();
     if (aiPanel.hasSelection && savedRangeRef.current) {
@@ -1406,7 +1406,7 @@ export const Editor: React.FC<EditorProps> = ({
                   <div
                     className="ai-result-preview"
                     dangerouslySetInnerHTML={{
-                      __html: markdownToHtml(aiPanel.resultMarkdown),
+                      __html: sanitizeHtml(markdownToHtml(aiPanel.resultMarkdown)),
                     }}
                   />
                   <div className="ai-result-actions">

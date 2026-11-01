@@ -1,6 +1,6 @@
 import { AIActionType, AppSettings, ChatMessage, ErrorCode, Note } from '../types';
 import { stripHtmlToText } from './storage';
-import { classifyErrorCode, logEvent } from './logger';
+import { classifyErrorCode, logEvent, redactSensitiveString } from './logger';
 
 const SYSTEM_INSTRUCTION = `You are an expert inline AI writing assistant embedded inside a modern note-taking app.
 Follow these formatting rules strictly:
@@ -115,9 +115,8 @@ export async function callGeminiRaw(params: {
     } else {
       const code =
         res.errorCode || classifyErrorCode(res.error || '', res.httpStatus);
-      const rawErr = (res.error || 'Unknown Gemini API error').replace(
-        /^\[GN-[A-Z]+-\d+\]\s*/,
-        ''
+      const rawErr = redactSensitiveString(
+        (res.error || 'Unknown Gemini API error').replace(/^\[GN-[A-Z]+-\d+\]\s*/, '')
       );
       const formattedError = `[${code}] ${rawErr}`;
 
@@ -210,7 +209,7 @@ export async function callGeminiRaw(params: {
     const durationMs = Date.now() - startTime;
 
     if (!res.ok) {
-      const rawErr = data?.error?.message || `HTTP Error ${res.status}`;
+      const rawErr = redactSensitiveString(data?.error?.message || `HTTP Error ${res.status}`);
       const code = classifyErrorCode(rawErr, res.status);
       await logEvent({
         level: 'error',

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { AppSettings, ChatMessage, Note } from '../types';
 import { chatWithAllNotes, markdownToHtml } from '../services/gemini';
+import { sanitizeHtml } from '../services/sanitizer';
 
 interface ChatSidebarProps {
   notes: Note[];
@@ -147,7 +148,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                     <div
                       className="chat-markdown-body"
                       dangerouslySetInnerHTML={{
-                        __html: markdownToHtml(msg.content),
+                        __html: sanitizeHtml(markdownToHtml(msg.content)),
                       }}
                     />
                     {msg.citedNotes && msg.citedNotes.length > 0 && (
@@ -175,7 +176,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                         onClick={() =>
                           onCreateNoteFromAnswer(
                             'AI Synthesis Note',
-                            markdownToHtml(msg.content)
+                            sanitizeHtml(markdownToHtml(msg.content))
                           )
                         }
                       >

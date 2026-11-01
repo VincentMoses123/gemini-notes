@@ -249,14 +249,20 @@ export async function saveSettingsToStorage(settings: AppSettings): Promise<void
 }
 
 export function stripHtmlToText(html: string): string {
-  const tmp = document.createElement('div');
-  tmp.innerHTML = html;
-  return (tmp.textContent || tmp.innerText || '').replace(/\s+/g, ' ').trim();
+  if (!html) return '';
+  try {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    return (doc.body.textContent || '').replace(/\s+/g, ' ').trim();
+  } catch {
+    return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  }
 }
 
 export function htmlToMarkdown(html: string): string {
-  const temp = document.createElement('div');
-  temp.innerHTML = html;
+  if (!html) return '';
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const temp = doc.body;
 
   function walk(node: Node): string {
     if (node.nodeType === Node.TEXT_NODE) {
