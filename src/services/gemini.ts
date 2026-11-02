@@ -8,52 +8,86 @@ Follow these formatting rules strictly:
 2. You may use clean Markdown formatting (such as **bold**, *italics*, bullet lists with "- ", numbered lists, or ## headings) when appropriate, as the editor will render it cleanly.
 3. Preserve the original accuracy and core meaning unless instructed to expand or brainstorm.`;
 
+const ACTION_INSTRUCTIONS: Record<Exclude<AIActionType, 'translate' | 'custom'>, string> = {
+  summarize: 'Summarize the following text clearly and concisely, capturing the key points:',
+  rewrite:
+    'Rewrite the following text to improve its clarity, flow, and readability while keeping the same meaning:',
+  fix_grammar:
+    'Fix all spelling, grammar, and punctuation errors in the following text without changing its tone or voice:',
+  expand: 'Expand on the following text with more detail, depth, and helpful elaboration:',
+  shorten:
+    'Make the following text significantly shorter and more punchy while preserving the core message:',
+  bullet_points:
+    'Convert the following text into a well-structured bulleted list of key takeaways:',
+  action_items:
+    'Extract a clear list of actionable tasks / next steps (with owners or deadlines if mentioned) from the following text:',
+  tone_professional:
+    'Rewrite the following text in a polished, executive, professional tone:',
+  tone_casual: 'Rewrite the following text in a warm, natural, conversational tone:',
+  continue_writing:
+    'Continue writing the next paragraph(s) naturally based on the context below, matching its style and topic:',
+  pros_cons:
+    'Generate a structured **Pros & Cons** analysis and key trade-offs based on the following topic or text:',
+  explain_simply:
+    'Explain the following concept or text in simple, plain, easy-to-understand language (ELI5) with a quick analogy if helpful:',
+  study_flashcards:
+    'Create a set of **Key Terms & Q&A Study Flashcards** (Question / Answer format) from the following notes:',
+};
+
 export function buildPromptForAction(
   action: AIActionType,
   targetText: string,
   noteContextTitle: string,
   customInstruction?: string
 ): string {
-  const contextHeader = noteContextTitle
-    ? `Note Title: "${noteContextTitle}"\n\n`
-    : '';
+  const contextHeader = noteContextTitle ? `Note Title: "${noteContextTitle}"\n\n` : '';
+  const quotedTarget = `"""\n${targetText}\n"""`;
 
-  switch (action) {
-    case 'summarize':
-      return `${contextHeader}Summarize the following text clearly and concisely, capturing the key points:\n\n"""\n${targetText}\n"""`;
-    case 'rewrite':
-      return `${contextHeader}Rewrite the following text to improve its clarity, flow, and readability while keeping the same meaning:\n\n"""\n${targetText}\n"""`;
-    case 'fix_grammar':
-      return `${contextHeader}Fix all spelling, grammar, and punctuation errors in the following text without changing its tone or voice:\n\n"""\n${targetText}\n"""`;
-    case 'expand':
-      return `${contextHeader}Expand on the following text with more detail, depth, and helpful elaboration:\n\n"""\n${targetText}\n"""`;
-    case 'shorten':
-      return `${contextHeader}Make the following text significantly shorter and more punchy while preserving the core message:\n\n"""\n${targetText}\n"""`;
-    case 'bullet_points':
-      return `${contextHeader}Convert the following text into a well-structured bulleted list of key takeaways:\n\n"""\n${targetText}\n"""`;
-    case 'action_items':
-      return `${contextHeader}Extract a clear list of actionable tasks / next steps (with owners or deadlines if mentioned) from the following text:\n\n"""\n${targetText}\n"""`;
-    case 'tone_professional':
-      return `${contextHeader}Rewrite the following text in a polished, executive, professional tone:\n\n"""\n${targetText}\n"""`;
-    case 'tone_casual':
-      return `${contextHeader}Rewrite the following text in a warm, natural, conversational tone:\n\n"""\n${targetText}\n"""`;
-    case 'continue_writing':
-      return `${contextHeader}Continue writing the next paragraph(s) naturally based on the context below, matching its style and topic:\n\n"""\n${targetText}\n"""`;
-    case 'pros_cons':
-      return `${contextHeader}Generate a structured **Pros & Cons** analysis and key trade-offs based on the following topic or text:\n\n"""\n${targetText}\n"""`;
-    case 'explain_simply':
-      return `${contextHeader}Explain the following concept or text in simple, plain, easy-to-understand language (ELI5) with a quick analogy if helpful:\n\n"""\n${targetText}\n"""`;
-    case 'study_flashcards':
-      return `${contextHeader}Create a set of **Key Terms & Q&A Study Flashcards** (Question / Answer format) from the following notes:\n\n"""\n${targetText}\n"""`;
-    case 'translate':
-      return `${contextHeader}Translate the following text into ${
-        customInstruction || 'Spanish'
-      } while preserving formatting and tone:\n\n"""\n${targetText}\n"""`;
-    case 'custom':
-      return `${contextHeader}Instruction: ${
-        customInstruction || 'Improve the text'
-      }\n\nTarget text:\n"""\n${targetText}\n"""`;
+  if (action === 'translate') {
+    return `${contextHeader}Translate the following text into ${
+      customInstruction || 'Spanish'
+    } while preserving formatting and tone:\n\n${quotedTarget}`;
   }
+  if (action === 'custom') {
+    return `${contextHeader}Instruction: ${
+      customInstruction || 'Improve the text'
+    }\n\nTarget text:\n${quotedTarget}`;
+  }
+  return `${contextHeader}${ACTION_INSTRUCTIONS[action]}\n\n${quotedTarget}`;
+}
+
+export interface GeminiRawResult {
+  ok: boolean;
+  text?: string;
+  usedModel?: string;
+  errorCode?: ErrorCode;
+  error?: string;
+}
+
+async function logGeminiFailure(params: {
+  actionLabel: string;
+  rawError: string;
+  code?: ErrorCode;
+  httpStatus?: number;
+  details?: string;
+  model?: string;
+  durationMs: number;
+  level?: 'warn' | 'error';
+}): Promise<GeminiRawResult> {
+  const cleanErr = redactSensitiveString(
+    (params.rawError || 'Unknown Gemini API error').replace(/^\[GN-[A-Z]+-\d+\]\s*/, '')
+  );
+  const code = params.code || classifyErrorCode(cleanErr, params.httpStatus);
+  await logEvent({
+    level: params.level || 'error',
+    code,
+    source: 'gemini-api',
+    message: `${params.actionLabel} failed: ${cleanErr}`,
+    details: params.details,
+    model: params.model,
+    durationMs: params.durationMs,
+  });
+  return { ok: false, errorCode: code, error: `[${code}] ${cleanErr}` };
 }
 
 export async function callGeminiRaw(params: {
@@ -61,13 +95,7 @@ export async function callGeminiRaw(params: {
   actionLabel?: string;
   systemInstruction?: string;
   settings: AppSettings;
-}): Promise<{
-  ok: boolean;
-  text?: string;
-  usedModel?: string;
-  errorCode?: ErrorCode;
-  error?: string;
-}> {
+}): Promise<GeminiRawResult> {
   const {
     prompt,
     actionLabel = 'AI Request',
@@ -75,14 +103,17 @@ export async function callGeminiRaw(params: {
     settings,
   } = params;
   const startTime = Date.now();
+  const requestedModel = settings.model || 'gemini-3-flash-preview';
 
   if (window.electronAPI) {
     const res = await window.electronAPI.generateWithGemini({
       apiKey: settings.apiKey,
-      model: settings.model,
+      model: requestedModel,
       systemInstruction,
       prompt,
     });
+    const durationMs = res.durationMs || Date.now() - startTime;
+    const activeModel = res.usedModel || requestedModel;
 
     if (res.fallbackTriggered && res.initialModel && res.usedModel) {
       await logEvent({
@@ -92,7 +123,7 @@ export async function callGeminiRaw(params: {
         message: `Model "${res.initialModel}" unavailable; auto-switched to "${res.usedModel}".`,
         details: `Action: ${actionLabel} | Automatic model discovery succeeded.`,
         model: res.usedModel,
-        durationMs: res.durationMs,
+        durationMs,
       });
     }
 
@@ -101,59 +132,36 @@ export async function callGeminiRaw(params: {
         level: 'info',
         source: 'gemini-api',
         message: `${actionLabel} completed (${res.text.length} chars)`,
-        details: `Prompt length: ${prompt.length} chars | Model: ${
-          res.usedModel || settings.model
-        }`,
-        model: res.usedModel || settings.model,
-        durationMs: res.durationMs || Date.now() - startTime,
+        details: `Prompt length: ${prompt.length} chars | Model: ${activeModel}`,
+        model: activeModel,
+        durationMs,
       });
-      return {
-        ok: true,
-        text: res.text,
-        usedModel: res.usedModel,
-      };
-    } else {
-      const code =
-        res.errorCode || classifyErrorCode(res.error || '', res.httpStatus);
-      const rawErr = redactSensitiveString(
-        (res.error || 'Unknown Gemini API error').replace(/^\[GN-[A-Z]+-\d+\]\s*/, '')
-      );
-      const formattedError = `[${code}] ${rawErr}`;
-
-      await logEvent({
-        level: 'error',
-        code,
-        source: 'gemini-api',
-        message: `${actionLabel} failed: ${rawErr}`,
-        details: `HTTP Status: ${res.httpStatus || 'N/A'} | Requested Model: ${
-          res.initialModel || settings.model
-        }`,
-        model: res.usedModel || settings.model,
-        durationMs: res.durationMs || Date.now() - startTime,
-      });
-
-      return {
-        ok: false,
-        errorCode: code,
-        error: formattedError,
-      };
+      return { ok: true, text: res.text, usedModel: res.usedModel };
     }
+
+    return logGeminiFailure({
+      actionLabel,
+      rawError: res.error || 'Unknown Gemini API error',
+      code: res.errorCode,
+      httpStatus: res.httpStatus,
+      details: `HTTP Status: ${res.httpStatus || 'N/A'} | Requested Model: ${
+        res.initialModel || requestedModel
+      }`,
+      model: activeModel,
+      durationMs,
+    });
   }
 
-  // Browser fallback
+  // Browser REST fallback
   const apiKey = settings.apiKey.trim();
   if (!apiKey) {
-    const code: ErrorCode = 'GN-AUTH-001';
-    const msg =
-      '[GN-AUTH-001] Missing Gemini API key. Click "Gemini Settings" in the sidebar to enter your Gemini API key.';
-    await logEvent({
-      level: 'error',
-      code,
-      source: 'gemini-api',
-      message: `${actionLabel} aborted: Missing Gemini API Key`,
+    return logGeminiFailure({
+      actionLabel,
+      rawError:
+        'Missing Gemini API key. Click "Gemini Settings" in the sidebar to enter your Gemini API key.',
+      code: 'GN-AUTH-001',
       durationMs: Date.now() - startTime,
     });
-    return { ok: false, errorCode: code, error: msg };
   }
 
   const callRestModel = async (targetModel: string) => {
@@ -166,18 +174,9 @@ export async function callGeminiRaw(params: {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        systemInstruction: {
-          parts: [{ text: systemInstruction }],
-        },
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: prompt }],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.7,
-        },
+        systemInstruction: { parts: [{ text: systemInstruction }] },
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.7 },
       }),
     });
     const data = await res.json();
@@ -185,46 +184,32 @@ export async function callGeminiRaw(params: {
   };
 
   try {
-    let { res, data, usedModel } = await callRestModel(
-      settings.model || 'gemini-3-flash-preview'
-    );
+    let { res, data, usedModel } = await callRestModel(requestedModel);
 
     if (!res.ok) {
       const errMessage = data?.error?.message || '';
-      const allMatches = Array.from(
+      const suggestions = Array.from(
         errMessage.matchAll(/models\/([a-zA-Z0-9._-]+)/g),
         (m: RegExpMatchArray) => m[1]
       );
-      for (const candidate of allMatches) {
+      for (const candidate of suggestions) {
         if (candidate && candidate !== usedModel) {
-          const retryResult = await callRestModel(candidate);
-          res = retryResult.res;
-          data = retryResult.data;
-          usedModel = retryResult.usedModel;
+          ({ res, data, usedModel } = await callRestModel(candidate));
           if (res.ok) break;
         }
       }
     }
 
     const durationMs = Date.now() - startTime;
-
     if (!res.ok) {
-      const rawErr = redactSensitiveString(data?.error?.message || `HTTP Error ${res.status}`);
-      const code = classifyErrorCode(rawErr, res.status);
-      await logEvent({
-        level: 'error',
-        code,
-        source: 'gemini-api',
-        message: `${actionLabel} failed: ${rawErr}`,
+      return logGeminiFailure({
+        actionLabel,
+        rawError: data?.error?.message || `HTTP Error ${res.status}`,
+        httpStatus: res.status,
         details: `HTTP ${res.status} | Model: ${usedModel}`,
         model: usedModel,
         durationMs,
       });
-      return {
-        ok: false,
-        errorCode: code,
-        error: `[${code}] ${rawErr}`,
-      };
     }
 
     const text =
@@ -233,20 +218,14 @@ export async function callGeminiRaw(params: {
         .join('') || '';
 
     if (!text) {
-      const code: ErrorCode = 'GN-PARSE-001';
-      await logEvent({
+      return logGeminiFailure({
+        actionLabel,
+        rawError: 'Gemini returned an empty response.',
+        code: 'GN-PARSE-001',
         level: 'warn',
-        code,
-        source: 'gemini-api',
-        message: `${actionLabel} returned an empty response.`,
         model: usedModel,
         durationMs,
       });
-      return {
-        ok: false,
-        errorCode: code,
-        error: '[GN-PARSE-001] Gemini returned an empty response.',
-      };
     }
 
     await logEvent({
@@ -256,23 +235,14 @@ export async function callGeminiRaw(params: {
       model: usedModel,
       durationMs,
     });
-
     return { ok: true, text, usedModel };
   } catch (err: any) {
-    const code: ErrorCode = 'GN-NET-001';
-    const rawErr = err?.message || 'Failed to reach Gemini API.';
-    await logEvent({
-      level: 'error',
-      code,
-      source: 'gemini-api',
-      message: `Network failure during ${actionLabel}: ${rawErr}`,
+    return logGeminiFailure({
+      actionLabel,
+      rawError: err?.message || 'Failed to reach Gemini API.',
+      code: 'GN-NET-001',
       durationMs: Date.now() - startTime,
     });
-    return {
-      ok: false,
-      errorCode: code,
-      error: `[${code}] ${rawErr}`,
-    };
   }
 }
 
@@ -282,23 +252,10 @@ export async function runGeminiAction(params: {
   noteTitle: string;
   customInstruction?: string;
   settings: AppSettings;
-}): Promise<{
-  ok: boolean;
-  text?: string;
-  usedModel?: string;
-  errorCode?: ErrorCode;
-  error?: string;
-}> {
+}): Promise<GeminiRawResult> {
   const { action, targetText, noteTitle, customInstruction, settings } = params;
-  const prompt = buildPromptForAction(
-    action,
-    targetText,
-    noteTitle,
-    customInstruction
-  );
-
   return callGeminiRaw({
-    prompt,
+    prompt: buildPromptForAction(action, targetText, noteTitle, customInstruction),
     actionLabel: `Inline AI (${action})`,
     systemInstruction: SYSTEM_INSTRUCTION,
     settings,
@@ -332,17 +289,14 @@ export async function generateNoteMetadata(params: {
     });
     return {
       ok: false,
-      error:
-        '[GN-INPUT-001] Write some content in the note first so Gemini can analyze it.',
+      error: '[GN-INPUT-001] Write some content in the note first so Gemini can analyze it.',
     };
   }
 
   const prompt = `Analyze the following note and return a JSON object with:
 1. "title": A concise, descriptive, engaging title (3 to 7 words, no quotes).
 2. "tags": An array of 3 to 5 lowercase single-word or hyphenated tags (without '#' prefix).
-3. "folder": The single best matching folder from this list: ${JSON.stringify(
-    availableFolders
-  )}.
+3. "folder": The single best matching folder from this list: ${JSON.stringify(availableFolders)}.
 
 Return ONLY valid JSON without markdown code fences.
 
@@ -365,34 +319,23 @@ ${plainText.slice(0, 4000)}
   }
 
   try {
-    const cleaned = res.text
-      .replace(/^```json\s*/i, '')
-      .replace(/^```\s*/i, '')
-      .replace(/```$/i, '')
-      .trim();
+    const cleaned = res.text.replace(/^```(?:json)?\s*|\s*```$/gi, '').trim();
     const parsed = JSON.parse(cleaned);
     const title =
-      typeof parsed.title === 'string' && parsed.title.trim()
-        ? parsed.title.trim()
-        : undefined;
+      typeof parsed.title === 'string' && parsed.title.trim() ? parsed.title.trim() : undefined;
     const tags = Array.isArray(parsed.tags)
       ? parsed.tags
-          .map((t: any) =>
-            String(t)
-              .toLowerCase()
-              .replace(/[^a-z0-9_-]/g, '')
-          )
+          .map((t: any) => String(t).toLowerCase().replace(/[^a-z0-9_-]/g, ''))
           .filter(Boolean)
           .slice(0, 5)
       : undefined;
     const folder =
-      typeof parsed.folder === 'string' &&
-      availableFolders.includes(parsed.folder)
+      typeof parsed.folder === 'string' && availableFolders.includes(parsed.folder)
         ? parsed.folder
         : undefined;
 
     return { ok: true, title, tags, folder };
-  } catch (e: any) {
+  } catch {
     await logEvent({
       level: 'warn',
       code: 'GN-PARSE-001',
@@ -402,8 +345,7 @@ ${plainText.slice(0, 4000)}
     });
     return {
       ok: false,
-      error:
-        '[GN-PARSE-001] Could not parse AI metadata response. Please try again.',
+      error: '[GN-PARSE-001] Could not parse AI metadata response. Please try again.',
     };
   }
 }
@@ -426,12 +368,12 @@ export async function chatWithAllNotes(params: {
   const activeNotes = notes.filter((n) => !n.trashed);
 
   const notesContext = activeNotes
-    .map((n, idx) => {
-      const text = stripHtmlToText(n.content).slice(0, 2000);
-      return `[Note ${idx + 1} | ID: ${n.id} | Title: "${
-        n.title || 'Untitled'
-      }" | Folder: ${n.folder || 'General'} | Tags: ${n.tags.join(', ')}]\n${text}`;
-    })
+    .map(
+      (n, idx) =>
+        `[Note ${idx + 1} | ID: ${n.id} | Title: "${n.title || 'Untitled'}" | Folder: ${
+          n.folder || 'General'
+        } | Tags: ${n.tags.join(', ')}]\n${stripHtmlToText(n.content).slice(0, 2000)}`
+    )
     .join('\n\n---\n\n');
 
   const recentHistory = history
@@ -473,11 +415,7 @@ Instructions:
     .slice(0, 4)
     .map((n) => ({ id: n.id, title: n.title || 'Untitled Note' }));
 
-  return {
-    ok: true,
-    answer: res.text,
-    citedNotes,
-  };
+  return { ok: true, answer: res.text, citedNotes };
 }
 
 /**
@@ -513,10 +451,9 @@ Do NOT wrap the response in code fences and do NOT include conversational intro 
     ok: true,
     title: topic.replace(/\b\w/g, (c) => c.toUpperCase()),
     html: markdownToHtml(res.text),
-    tags: [
-      'template',
-      topic.toLowerCase().split(/\s+/)[0].replace(/[^a-z0-9]/g, ''),
-    ].filter(Boolean),
+    tags: ['template', topic.toLowerCase().split(/\s+/)[0].replace(/[^a-z0-9]/g, '')].filter(
+      Boolean
+    ),
   };
 }
 
@@ -525,19 +462,17 @@ Do NOT wrap the response in code fences and do NOT include conversational intro 
  * suitable for inserting into the rich-text editor.
  */
 export function markdownToHtml(md: string): string {
-  const lines = md.trim().split('\n');
   const htmlParts: string[] = [];
   let inList: 'ul' | 'ol' | null = null;
 
-  const formatInline = (text: string) => {
-    return text
+  const formatInline = (text: string) =>
+    text
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.+?)\*/g, '<em>$1</em>')
       .replace(/`(.+?)`/g, '<code>$1</code>');
-  };
 
   const closeList = () => {
     if (inList) {
@@ -546,49 +481,39 @@ export function markdownToHtml(md: string): string {
     }
   };
 
-  for (const rawLine of lines) {
+  const ensureList = (type: 'ul' | 'ol') => {
+    if (inList !== type) {
+      closeList();
+      inList = type;
+      htmlParts.push(`<${type}>`);
+    }
+  };
+
+  for (const rawLine of md.trim().split('\n')) {
     const line = rawLine.trim();
     if (!line) {
       closeList();
       continue;
     }
 
-    if (line.startsWith('### ')) {
+    const headingMatch = line.match(/^(#{1,3})\s+(.*)$/);
+    if (headingMatch) {
       closeList();
-      htmlParts.push(`<h3>${formatInline(line.slice(4))}</h3>`);
-    } else if (line.startsWith('## ')) {
-      closeList();
-      htmlParts.push(`<h2>${formatInline(line.slice(3))}</h2>`);
-    } else if (line.startsWith('# ')) {
-      closeList();
-      htmlParts.push(`<h1>${formatInline(line.slice(2))}</h1>`);
+      const level = headingMatch[1].length;
+      htmlParts.push(`<h${level}>${formatInline(headingMatch[2])}</h${level}>`);
     } else if (/^[-*•]\s+\[[ xX]\]\s+/.test(line)) {
       const checked = /^[-*•]\s+\[[xX]\]/.test(line);
       const itemText = line.replace(/^[-*•]\s+\[[ xX]\]\s+/, '');
-      if (inList !== 'ul') {
-        closeList();
-        inList = 'ul';
-        htmlParts.push('<ul>');
-      }
+      ensureList('ul');
       htmlParts.push(
         `<li><input type="checkbox" ${checked ? 'checked' : ''} /> ${formatInline(itemText)}</li>`
       );
     } else if (/^[-*•]\s+/.test(line)) {
-      const itemText = line.replace(/^[-*•]\s+/, '');
-      if (inList !== 'ul') {
-        closeList();
-        inList = 'ul';
-        htmlParts.push('<ul>');
-      }
-      htmlParts.push(`<li>${formatInline(itemText)}</li>`);
+      ensureList('ul');
+      htmlParts.push(`<li>${formatInline(line.replace(/^[-*•]\s+/, ''))}</li>`);
     } else if (/^\d+\.\s+/.test(line)) {
-      const itemText = line.replace(/^\d+\.\s+/, '');
-      if (inList !== 'ol') {
-        closeList();
-        inList = 'ol';
-        htmlParts.push('<ol>');
-      }
-      htmlParts.push(`<li>${formatInline(itemText)}</li>`);
+      ensureList('ol');
+      htmlParts.push(`<li>${formatInline(line.replace(/^\d+\.\s+/, ''))}</li>`);
     } else if (line.startsWith('> ')) {
       closeList();
       htmlParts.push(`<blockquote>${formatInline(line.slice(2))}</blockquote>`);

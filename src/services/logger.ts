@@ -3,17 +3,20 @@ import { ErrorCode, ErrorCodeDefinition, LogEntry, LogLevel } from '../types';
 const LOGS_STORAGE_KEY = 'gemini_notes_logs_v1';
 const MAX_LOGS = 250;
 
+const REDACTION_PATTERNS: Array<[RegExp, string]> = [
+  [/AIza[0-9A-Za-z-_]{30,45}/g, 'AIzaSy***REDACTED***'],
+  [/([?&]key=)[^&\s"']+/gi, '$1***REDACTED***'],
+  [/(Bearer\s+)[A-Za-z0-9_\-\.]{10,}/gi, '$1***REDACTED***'],
+  [/(api[_-]?key["']?\s*[:=]\s*["']?)[^"',\s}{]+/gi, '$1***REDACTED***'],
+];
+
 /**
  * Redacts sensitive credentials (Google/Gemini API keys, bearer tokens, query parameters)
  * to prevent accidental credential leakage in logs or crash dumps.
  */
 export function redactSensitiveString(str?: string): string {
   if (!str || typeof str !== 'string') return str || '';
-  return str
-    .replace(/AIza[0-9A-Za-z-_]{30,45}/g, 'AIzaSy***REDACTED***')
-    .replace(/([?&]key=)[^&\s"']+/gi, '$1***REDACTED***')
-    .replace(/(Bearer\s+)[A-Za-z0-9_\-\.]{10,}/gi, '$1***REDACTED***')
-    .replace(/(api[_-]?key["']?\s*[:=]\s*["']?)[^"',\s}{]+/gi, '$1***REDACTED***');
+  return REDACTION_PATTERNS.reduce((acc, [regex, replacement]) => acc.replace(regex, replacement), str);
 }
 
 export function sanitizeLogEntry(entry: LogEntry): LogEntry {
@@ -91,53 +94,46 @@ export const ERROR_CODE_CATALOG: ErrorCodeDefinition[] = [
   },
 ];
 
-export function classifyErrorCode(
-  message: string,
-  httpStatus?: number
-): ErrorCode {
+const ERROR_CLASSIFICATION_RULES: Array<{
+  code: ErrorCode;
+  statuses?: number[];
+  keywords: string[];
+}> = [
+  { code: 'GN-AUTH-001', keywords: ['missing gemini api key'] },
+  {
+    code: 'GN-AUTH-002',
+    statuses: [401, 403],
+    keywords: ['api_key_invalid', 'api key not valid', 'permission denied'],
+  },
+  {
+    code: 'GN-MODEL-001',
+    statuses: [404],
+    keywords: ['not found', 'no longer available', 'is not supported for generatecontent'],
+  },
+  {
+    code: 'GN-QUOTA-001',
+    statuses: [429],
+    keywords: ['quota', 'rate limit', 'resource has been exhausted'],
+  },
+  {
+    code: 'GN-NET-001',
+    keywords: ['network', 'fetch failed', 'enotfound', 'failed to reach'],
+  },
+  {
+    code: 'GN-PARSE-001',
+    keywords: ['empty response', 'parse', 'json'],
+  },
+];
+
+export function classifyErrorCode(message: string, httpStatus?: number): ErrorCode {
   const lower = (message || '').toLowerCase();
-  if (lower.includes('missing gemini api key')) {
-    return 'GN-AUTH-001';
-  }
-  if (
-    httpStatus === 401 ||
-    httpStatus === 403 ||
-    lower.includes('api_key_invalid') ||
-    lower.includes('api key not valid') ||
-    lower.includes('permission denied')
-  ) {
-    return 'GN-AUTH-002';
-  }
-  if (
-    httpStatus === 404 ||
-    lower.includes('not found') ||
-    lower.includes('no longer available') ||
-    lower.includes('is not supported for generatecontent')
-  ) {
-    return 'GN-MODEL-001';
-  }
-  if (
-    httpStatus === 429 ||
-    lower.includes('quota') ||
-    lower.includes('rate limit') ||
-    lower.includes('resource has been exhausted')
-  ) {
-    return 'GN-QUOTA-001';
-  }
-  if (
-    lower.includes('network') ||
-    lower.includes('fetch failed') ||
-    lower.includes('enotfound') ||
-    lower.includes('failed to reach')
-  ) {
-    return 'GN-NET-001';
-  }
-  if (
-    lower.includes('empty response') ||
-    lower.includes('parse') ||
-    lower.includes('json')
-  ) {
-    return 'GN-PARSE-001';
+  for (const rule of ERROR_CLASSIFICATION_RULES) {
+    if (
+      (httpStatus !== undefined && rule.statuses?.includes(httpStatus)) ||
+      rule.keywords.some((kw) => lower.includes(kw))
+    ) {
+      return rule.code;
+    }
   }
   return 'GN-UNKNOWN-999';
 }
@@ -145,9 +141,17 @@ export function classifyErrorCode(
 let memoryLogs: LogEntry[] = [];
 const listeners = new Set<(logs: LogEntry[]) => void>();
 
-function notifyListeners() {
+function updateMemoryLogs(next: LogEntry[], persistLocal = false) {
+  memoryLogs = next.slice(0, MAX_LOGS);
   const snapshot = [...memoryLogs];
   listeners.forEach((cb) => cb(snapshot));
+  if (persistLocal) {
+    try {
+      localStorage.setItem(LOGS_STORAGE_KEY, JSON.stringify(memoryLogs));
+    } catch {
+      // ignore
+    }
+  }
 }
 
 export async function initLogger(): Promise<LogEntry[]> {
@@ -155,8 +159,7 @@ export async function initLogger(): Promise<LogEntry[]> {
     try {
       const diskLogs = await window.electronAPI.loadLogs();
       if (Array.isArray(diskLogs)) {
-        memoryLogs = diskLogs.map(sanitizeLogEntry).slice(0, MAX_LOGS);
-        notifyListeners();
+        updateMemoryLogs(diskLogs.map(sanitizeLogEntry));
         return memoryLogs;
       }
     } catch (e) {
@@ -166,11 +169,9 @@ export async function initLogger(): Promise<LogEntry[]> {
 
   try {
     const raw = localStorage.getItem(LOGS_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        memoryLogs = parsed.map(sanitizeLogEntry).slice(0, MAX_LOGS);
-      }
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (Array.isArray(parsed)) {
+      memoryLogs = parsed.map(sanitizeLogEntry).slice(0, MAX_LOGS);
     }
   } catch {
     // ignore
@@ -181,12 +182,10 @@ export async function initLogger(): Promise<LogEntry[]> {
       level: 'info',
       source: 'system',
       message: 'Gemini Notes initialized and local storage mounted.',
-      details: `Platform: ${navigator.platform} | Electron IPC: ${Boolean(
-        window.electronAPI
-      )}`,
+      details: `Platform: ${navigator.platform} | Electron IPC: ${Boolean(window.electronAPI)}`,
     });
   } else {
-    notifyListeners();
+    updateMemoryLogs(memoryLogs);
   }
 
   return memoryLogs;
@@ -201,30 +200,14 @@ export async function logEvent(params: {
   durationMs?: number;
   model?: string;
 }): Promise<LogEntry> {
-  const entry: LogEntry = {
+  const entry = sanitizeLogEntry({
     id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     timestamp: new Date().toISOString(),
-    level: params.level,
-    source: params.source,
-    message: redactSensitiveString(params.message),
-    code: params.code,
-    details: params.details ? redactSensitiveString(params.details) : undefined,
-    durationMs: params.durationMs,
-    model: params.model,
-  };
+    ...params,
+  });
 
-  memoryLogs = [entry, ...memoryLogs].slice(0, MAX_LOGS);
-  notifyListeners();
-
-  if (window.electronAPI?.appendLog) {
-    window.electronAPI.appendLog(entry).catch(() => {});
-  }
-  try {
-    localStorage.setItem(LOGS_STORAGE_KEY, JSON.stringify(memoryLogs));
-  } catch {
-    // ignore
-  }
-
+  updateMemoryLogs([entry, ...memoryLogs], true);
+  window.electronAPI?.appendLog?.(entry).catch(() => {});
   return entry;
 }
 
@@ -233,11 +216,8 @@ export function getLogs(): LogEntry[] {
 }
 
 export async function clearAllLogs(): Promise<void> {
-  memoryLogs = [];
-  notifyListeners();
-  if (window.electronAPI?.clearLogs) {
-    await window.electronAPI.clearLogs();
-  }
+  updateMemoryLogs([]);
+  await window.electronAPI?.clearLogs?.();
   try {
     localStorage.removeItem(LOGS_STORAGE_KEY);
   } catch {
@@ -245,9 +225,7 @@ export async function clearAllLogs(): Promise<void> {
   }
 }
 
-export function subscribeToLogs(
-  callback: (logs: LogEntry[]) => void
-): () => void {
+export function subscribeToLogs(callback: (logs: LogEntry[]) => void): () => void {
   listeners.add(callback);
   callback([...memoryLogs]);
   return () => {

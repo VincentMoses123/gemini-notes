@@ -86,6 +86,96 @@ interface SlashCommandItem {
   run: () => void;
 }
 
+const TOOLBAR_FORMAT_GROUPS: {
+  cmd: string;
+  val?: string;
+  title: string;
+  Icon: React.ElementType;
+}[][] = [
+  [
+    { cmd: 'formatBlock', val: 'H1', title: 'Heading 1', Icon: Heading1 },
+    { cmd: 'formatBlock', val: 'H2', title: 'Heading 2', Icon: Heading2 },
+    { cmd: 'formatBlock', val: 'H3', title: 'Heading 3', Icon: Heading3 },
+  ],
+  [
+    { cmd: 'bold', title: 'Bold (⌘B)', Icon: Bold },
+    { cmd: 'italic', title: 'Italic (⌘I)', Icon: Italic },
+    { cmd: 'underline', title: 'Underline (⌘U)', Icon: Underline },
+    { cmd: 'strikeThrough', title: 'Strikethrough', Icon: Strikethrough },
+  ],
+  [
+    { cmd: 'insertUnorderedList', title: 'Bullet List', Icon: List },
+    { cmd: 'insertOrderedList', title: 'Numbered List', Icon: ListOrdered },
+    { cmd: 'formatBlock', val: 'BLOCKQUOTE', title: 'Quote Block', Icon: Quote },
+    { cmd: 'formatBlock', val: 'PRE', title: 'Code Block', Icon: Code },
+    { cmd: 'insertHorizontalRule', title: 'Horizontal Divider', Icon: Minus },
+  ],
+];
+
+const AI_QUICK_PILLS: {
+  action: AIActionType;
+  label: string;
+  Icon: React.ElementType;
+  custom?: string;
+}[] = [
+  { action: 'rewrite', label: 'Improve Writing', Icon: Wand2 },
+  { action: 'summarize', label: 'Summarize', Icon: FileText },
+  { action: 'fix_grammar', label: 'Fix Grammar', Icon: Check },
+  { action: 'shorten', label: 'Make Concise', Icon: Minimize2 },
+  { action: 'expand', label: 'Expand', Icon: Maximize2 },
+  { action: 'action_items', label: 'Action Items', Icon: CheckSquare },
+  { action: 'tone_professional', label: 'Professional Tone', Icon: Briefcase },
+  { action: 'continue_writing', label: 'Continue Writing', Icon: Sparkles },
+  { action: 'pros_cons', label: 'Pros & Cons', Icon: Scale },
+  { action: 'study_flashcards', label: 'Study Flashcards', Icon: BookOpen },
+  { action: 'explain_simply', label: 'Explain Simply', Icon: Lightbulb },
+  { action: 'translate', label: 'Translate (ES)', Icon: Languages, custom: 'Spanish' },
+];
+
+const BUBBLE_AI_ACTIONS: {
+  action: AIActionType;
+  label: string;
+  primary?: boolean;
+}[] = [
+  { action: 'rewrite', label: 'Improve', primary: true },
+  { action: 'summarize', label: 'Summarize' },
+  { action: 'fix_grammar', label: 'Fix Grammar' },
+  { action: 'expand', label: 'Expand' },
+];
+
+const AI_SLASH_DEFS: {
+  id: string;
+  label: string;
+  description: string;
+  action: AIActionType;
+  Icon: React.ElementType;
+  fallbackTitle?: boolean;
+}[] = [
+  { id: 'ai-continue', label: 'Continue Writing', description: 'Let Gemini write the next paragraph based on your note', action: 'continue_writing', Icon: Sparkles, fallbackTitle: true },
+  { id: 'ai-summarize', label: 'Summarize Note', description: 'Generate a concise summary of this note', action: 'summarize', Icon: Wand2 },
+  { id: 'ai-actions', label: 'Extract Action Items', description: 'Find tasks, next steps, and owners from your note', action: 'action_items', Icon: CheckSquare },
+  { id: 'ai-pros-cons', label: 'Generate Pros & Cons', description: 'Analyze trade-offs, advantages, and risks on this topic', action: 'pros_cons', Icon: Scale, fallbackTitle: true },
+  { id: 'ai-flashcards', label: 'Create Study Flashcards & Quiz', description: 'Turn your note into Q&A study flashcards and key terms', action: 'study_flashcards', Icon: BookOpen },
+  { id: 'ai-eli5', label: 'Explain Simply (ELI5)', description: 'Break down complex ideas in plain language', action: 'explain_simply', Icon: Lightbulb },
+];
+
+const FORMAT_SLASH_DEFS: {
+  id: string;
+  label: string;
+  description: string;
+  cmd: string;
+  val?: string;
+  Icon: React.ElementType;
+}[] = [
+  { id: 'h1', label: 'Heading 1', description: 'Large section heading', cmd: 'formatBlock', val: 'H1', Icon: Heading1 },
+  { id: 'h2', label: 'Heading 2', description: 'Medium section heading', cmd: 'formatBlock', val: 'H2', Icon: Heading2 },
+  { id: 'h3', label: 'Heading 3', description: 'Sub-section heading', cmd: 'formatBlock', val: 'H3', Icon: Heading3 },
+  { id: 'bullet', label: 'Bullet List', description: 'Create a simple bulleted list', cmd: 'insertUnorderedList', Icon: List },
+  { id: 'numbered', label: 'Numbered List', description: 'Create an ordered list', cmd: 'insertOrderedList', Icon: ListOrdered },
+  { id: 'quote', label: 'Quote Block', description: 'Highlight an important quote or callout', cmd: 'formatBlock', val: 'BLOCKQUOTE', Icon: Quote },
+  { id: 'divider', label: 'Divider Line', description: 'Visually separate sections with a horizontal line', cmd: 'insertHorizontalRule', Icon: Minus },
+];
+
 export const Editor: React.FC<EditorProps> = ({
   note,
   folders,
@@ -110,16 +200,15 @@ export const Editor: React.FC<EditorProps> = ({
   const [autoTagging, setAutoTagging] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [showCreatedDate, setShowCreatedDate] = useState(false);
+  const [copiedFeedback, setCopiedFeedback] = useState(false);
 
-  // Floating selection bubble state
-  const [selectionMenu, setSelectionMenu] = useState<{
-    visible: boolean;
-    x: number;
-    y: number;
-    selectedText: string;
-  }>({ visible: false, x: 0, y: 0, selectedText: '' });
+  const [selectionMenu, setSelectionMenu] = useState({
+    visible: false,
+    x: 0,
+    y: 0,
+    selectedText: '',
+  });
 
-  // Inline AI assistant panel state
   const [aiPanel, setAiPanel] = useState<{
     open: boolean;
     targetText: string;
@@ -140,14 +229,7 @@ export const Editor: React.FC<EditorProps> = ({
     customPrompt: '',
   });
 
-  // Slash command menu state
-  const [slashMenu, setSlashMenu] = useState<{
-    open: boolean;
-    x: number;
-    y: number;
-    query: string;
-    selectedIndex: number;
-  }>({
+  const [slashMenu, setSlashMenu] = useState({
     open: false,
     x: 0,
     y: 0,
@@ -155,16 +237,14 @@ export const Editor: React.FC<EditorProps> = ({
     selectedIndex: 0,
   });
 
-  const [copiedFeedback, setCopiedFeedback] = useState(false);
-
   const computeStats = useCallback((html: string) => {
     const text = stripHtmlToText(html);
-    const chars = text.length;
-    const words = text ? text.split(/\s+/).length : 0;
-    setWordStats({ words, chars });
+    setWordStats({
+      chars: text.length,
+      words: text ? text.split(/\s+/).length : 0,
+    });
   }, []);
 
-  // Load content into contentEditable when switching notes
   useEffect(() => {
     if (editorRef.current && lastLoadedNoteId.current !== note.id) {
       editorRef.current.innerHTML = sanitizeHtml(note.content || '<p><br></p>');
@@ -172,12 +252,7 @@ export const Editor: React.FC<EditorProps> = ({
       computeStats(note.content || '');
       setSelectionMenu({ visible: false, x: 0, y: 0, selectedText: '' });
       setSlashMenu((prev) => ({ ...prev, open: false }));
-      setAiPanel((prev) => ({
-        ...prev,
-        open: false,
-        error: null,
-        resultMarkdown: '',
-      }));
+      setAiPanel((prev) => ({ ...prev, open: false, error: null, resultMarkdown: '' }));
     }
   }, [note.id, note.content, computeStats]);
 
@@ -188,7 +263,6 @@ export const Editor: React.FC<EditorProps> = ({
     onUpdateNote({ content: html });
   }, [computeStats, onUpdateNote]);
 
-  // Save current DOM selection Range
   const saveCurrentSelection = () => {
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0 && editorRef.current) {
@@ -209,46 +283,40 @@ export const Editor: React.FC<EditorProps> = ({
     }
   };
 
-  // Detect text selection inside the editor for Floating Bubble Menu
+  const openCustomAiPrompt = (targetText: string, hasSelection: boolean) => {
+    setAiPanel({
+      open: true,
+      targetText,
+      hasSelection,
+      loading: false,
+      resultMarkdown: '',
+      error: null,
+      lastAction: 'custom',
+      customPrompt: '',
+    });
+  };
+
   const handleMouseUpOrKeyUp = () => {
     const sel = window.getSelection();
-    if (!sel || sel.isCollapsed || !editorRef.current) {
-      setSelectionMenu((prev) =>
-        prev.visible ? { ...prev, visible: false } : prev
-      );
-      return;
-    }
-
-    const text = sel.toString().trim();
-    if (!text || text.length < 2) {
-      setSelectionMenu((prev) =>
-        prev.visible ? { ...prev, visible: false } : prev
-      );
+    const text = sel && !sel.isCollapsed ? sel.toString().trim() : '';
+    if (!sel || !editorRef.current || text.length < 2) {
+      setSelectionMenu((prev) => (prev.visible ? { ...prev, visible: false } : prev));
       return;
     }
 
     const range = sel.getRangeAt(0);
-    if (!editorRef.current.contains(range.commonAncestorContainer)) {
-      return;
-    }
+    if (!editorRef.current.contains(range.commonAncestorContainer)) return;
 
     savedRangeRef.current = range.cloneRange();
     const rect = range.getBoundingClientRect();
-    const clampedX = Math.max(
-      280,
-      Math.min(window.innerWidth - 360, rect.left + rect.width / 2)
-    );
-    const clampedY = Math.max(70, rect.top - 48);
-
     setSelectionMenu({
       visible: true,
-      x: clampedX,
-      y: clampedY,
+      x: Math.max(280, Math.min(window.innerWidth - 360, rect.left + rect.width / 2)),
+      y: Math.max(70, rect.top - 48),
       selectedText: text,
     });
   };
 
-  // Formatting command helper
   const execFormat = (command: string, value?: string) => {
     if (!editorRef.current) return;
     editorRef.current.focus();
@@ -258,7 +326,6 @@ export const Editor: React.FC<EditorProps> = ({
     saveCurrentSelection();
   };
 
-  // Trigger Gemini AI action
   const triggerAIAction = async (
     action: AIActionType,
     overrideTargetText?: string,
@@ -267,14 +334,9 @@ export const Editor: React.FC<EditorProps> = ({
   ) => {
     const plainNoteText = editorRef.current?.innerText?.trim() || '';
     const target =
-      overrideTargetText !== undefined
-        ? overrideTargetText
-        : selectionMenu.selectedText || aiPanel.targetText || plainNoteText;
-
+      overrideTargetText ?? (selectionMenu.selectedText || aiPanel.targetText || plainNoteText);
     const isSelection =
-      hasSelectionFlag !== undefined
-        ? hasSelectionFlag
-        : Boolean(selectionMenu.selectedText || aiPanel.hasSelection);
+      hasSelectionFlag ?? Boolean(selectionMenu.selectedText || aiPanel.hasSelection);
 
     setSelectionMenu((prev) => ({ ...prev, visible: false }));
 
@@ -285,8 +347,7 @@ export const Editor: React.FC<EditorProps> = ({
         hasSelection: false,
         loading: false,
         resultMarkdown: '',
-        error:
-          'Write a few words or a title first so Gemini has context to work with!',
+        error: 'Write a few words or a title first so Gemini has context to work with!',
         lastAction: action,
         customPrompt: customInstructionText || '',
       });
@@ -312,31 +373,21 @@ export const Editor: React.FC<EditorProps> = ({
       settings,
     });
 
-    if (response.ok && response.text) {
-      setAiPanel((prev) => ({
-        ...prev,
-        loading: false,
-        resultMarkdown: response.text || '',
-        error: null,
-      }));
-    } else {
-      setAiPanel((prev) => ({
-        ...prev,
-        loading: false,
-        error: response.error || 'Failed to generate AI response.',
-      }));
-    }
+    setAiPanel((prev) => ({
+      ...prev,
+      loading: false,
+      resultMarkdown: response.ok && response.text ? response.text : '',
+      error: response.ok && response.text ? null : response.error || 'Failed to generate AI response.',
+    }));
   };
 
-  // Remove the "/command" trigger text from the DOM before running a slash command
   const removeSlashTriggerFromDom = () => {
     const sel = window.getSelection();
     if (!sel || !sel.rangeCount) return;
     const range = sel.getRangeAt(0);
     const node = range.startContainer;
     if (node.nodeType === Node.TEXT_NODE && node.textContent) {
-      const textBefore = node.textContent.slice(0, range.startOffset);
-      const slashIndex = textBefore.lastIndexOf('/');
+      const slashIndex = node.textContent.slice(0, range.startOffset).lastIndexOf('/');
       if (slashIndex !== -1) {
         const deleteRange = document.createRange();
         deleteRange.setStart(node, slashIndex);
@@ -347,158 +398,43 @@ export const Editor: React.FC<EditorProps> = ({
   };
 
   const slashCommands: SlashCommandItem[] = [
-    {
-      id: 'ai-continue',
-      label: 'Continue Writing',
-      description: 'Let Gemini write the next paragraph based on your note',
-      category: 'ai',
-      icon: <Sparkles size={15} className="accent-icon" />,
+    ...AI_SLASH_DEFS.map(({ id, label, description, action, Icon, fallbackTitle }) => ({
+      id,
+      label,
+      description,
+      category: 'ai' as const,
+      icon: <Icon size={15} className="accent-icon" />,
       run: () => {
-        const text = editorRef.current?.innerText?.trim() || note.title;
-        triggerAIAction('continue_writing', text, false);
+        const text = editorRef.current?.innerText?.trim() || (fallbackTitle ? note.title : '');
+        triggerAIAction(action, text, false);
       },
-    },
-    {
-      id: 'ai-summarize',
-      label: 'Summarize Note',
-      description: 'Generate a concise summary of this note',
-      category: 'ai',
-      icon: <Wand2 size={15} className="accent-icon" />,
-      run: () => {
-        const text = editorRef.current?.innerText?.trim() || '';
-        triggerAIAction('summarize', text, false);
-      },
-    },
-    {
-      id: 'ai-actions',
-      label: 'Extract Action Items',
-      description: 'Find tasks, next steps, and owners from your note',
-      category: 'ai',
-      icon: <CheckSquare size={15} className="accent-icon" />,
-      run: () => {
-        const text = editorRef.current?.innerText?.trim() || '';
-        triggerAIAction('action_items', text, false);
-      },
-    },
-    {
-      id: 'ai-pros-cons',
-      label: 'Generate Pros & Cons',
-      description: 'Analyze trade-offs, advantages, and risks on this topic',
-      category: 'ai',
-      icon: <Scale size={15} className="accent-icon" />,
-      run: () => {
-        const text = editorRef.current?.innerText?.trim() || note.title;
-        triggerAIAction('pros_cons', text, false);
-      },
-    },
-    {
-      id: 'ai-flashcards',
-      label: 'Create Study Flashcards & Quiz',
-      description: 'Turn your note into Q&A study flashcards and key terms',
-      category: 'ai',
-      icon: <BookOpen size={15} className="accent-icon" />,
-      run: () => {
-        const text = editorRef.current?.innerText?.trim() || '';
-        triggerAIAction('study_flashcards', text, false);
-      },
-    },
-    {
-      id: 'ai-eli5',
-      label: 'Explain Simply (ELI5)',
-      description: 'Break down complex ideas in plain language',
-      category: 'ai',
-      icon: <Lightbulb size={15} className="accent-icon" />,
-      run: () => {
-        const text = editorRef.current?.innerText?.trim() || '';
-        triggerAIAction('explain_simply', text, false);
-      },
-    },
+    })),
     {
       id: 'ai-custom',
       label: 'Ask Gemini Custom Prompt...',
       description: 'Give Gemini any custom writing or brainstorming instruction',
       category: 'ai',
       icon: <MessageCircle size={15} className="accent-icon" />,
-      run: () => {
-        const text =
-          editorRef.current?.innerText?.trim() || note.title || 'Brainstorm';
-        setAiPanel({
-          open: true,
-          targetText: text,
-          hasSelection: false,
-          loading: false,
-          resultMarkdown: '',
-          error: null,
-          lastAction: 'custom',
-          customPrompt: '',
-        });
-      },
+      run: () =>
+        openCustomAiPrompt(
+          editorRef.current?.innerText?.trim() || note.title || 'Brainstorm',
+          false
+        ),
     },
-    {
-      id: 'h1',
-      label: 'Heading 1',
-      description: 'Large section heading',
-      category: 'format',
-      icon: <Heading1 size={15} />,
-      run: () => execFormat('formatBlock', 'H1'),
-    },
-    {
-      id: 'h2',
-      label: 'Heading 2',
-      description: 'Medium section heading',
-      category: 'format',
-      icon: <Heading2 size={15} />,
-      run: () => execFormat('formatBlock', 'H2'),
-    },
-    {
-      id: 'h3',
-      label: 'Heading 3',
-      description: 'Sub-section heading',
-      category: 'format',
-      icon: <Heading3 size={15} />,
-      run: () => execFormat('formatBlock', 'H3'),
-    },
-    {
-      id: 'bullet',
-      label: 'Bullet List',
-      description: 'Create a simple bulleted list',
-      category: 'format',
-      icon: <List size={15} />,
-      run: () => execFormat('insertUnorderedList'),
-    },
-    {
-      id: 'numbered',
-      label: 'Numbered List',
-      description: 'Create an ordered list',
-      category: 'format',
-      icon: <ListOrdered size={15} />,
-      run: () => execFormat('insertOrderedList'),
-    },
-    {
-      id: 'quote',
-      label: 'Quote Block',
-      description: 'Highlight an important quote or callout',
-      category: 'format',
-      icon: <Quote size={15} />,
-      run: () => execFormat('formatBlock', 'BLOCKQUOTE'),
-    },
-    {
-      id: 'divider',
-      label: 'Divider Line',
-      description: 'Visually separate sections with a horizontal line',
-      category: 'format',
-      icon: <Minus size={15} />,
-      run: () => execFormat('insertHorizontalRule'),
-    },
+    ...FORMAT_SLASH_DEFS.map(({ id, label, description, cmd, val, Icon }) => ({
+      id,
+      label,
+      description,
+      category: 'format' as const,
+      icon: <Icon size={15} />,
+      run: () => execFormat(cmd, val),
+    })),
   ];
 
   const filteredSlashCommands = slashCommands.filter((item) => {
     if (!slashMenu.query) return true;
     const q = slashMenu.query.toLowerCase();
-    return (
-      item.label.toLowerCase().includes(q) ||
-      item.description.toLowerCase().includes(q)
-    );
+    return item.label.toLowerCase().includes(q) || item.description.toLowerCase().includes(q);
   });
 
   const executeSlashCommand = (item: SlashCommandItem) => {
@@ -508,50 +444,28 @@ export const Editor: React.FC<EditorProps> = ({
     syncEditorContent();
   };
 
-  // Handle keydown inside editor (for slash menu navigation & shortcuts)
   const handleEditorKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (slashMenu.open && filteredSlashCommands.length > 0) {
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setSlashMenu((prev) => ({
-          ...prev,
-          selectedIndex:
-            (prev.selectedIndex + 1) % filteredSlashCommands.length,
-        }));
-        return;
-      }
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setSlashMenu((prev) => ({
-          ...prev,
-          selectedIndex:
-            (prev.selectedIndex - 1 + filteredSlashCommands.length) %
-            filteredSlashCommands.length,
-        }));
-        return;
-      }
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        const chosen =
-          filteredSlashCommands[slashMenu.selectedIndex] ||
-          filteredSlashCommands[0];
-        if (chosen) {
-          executeSlashCommand(chosen);
-        }
-        return;
-      }
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        setSlashMenu((prev) => ({ ...prev, open: false }));
-        return;
-      }
+    if (!slashMenu.open || filteredSlashCommands.length === 0) return;
+    const len = filteredSlashCommands.length;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const delta = e.key === 'ArrowDown' ? 1 : -1;
+      setSlashMenu((prev) => ({
+        ...prev,
+        selectedIndex: (prev.selectedIndex + delta + len) % len,
+      }));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const chosen = filteredSlashCommands[slashMenu.selectedIndex] || filteredSlashCommands[0];
+      if (chosen) executeSlashCommand(chosen);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setSlashMenu((prev) => ({ ...prev, open: false }));
     }
   };
 
-  // Detect "/" slash command while typing
   const handleEditorInput = () => {
     syncEditorContent();
-
     const sel = window.getSelection();
     if (!sel || !sel.isCollapsed || !sel.rangeCount) {
       setSlashMenu((prev) => (prev.open ? { ...prev, open: false } : prev));
@@ -575,24 +489,18 @@ export const Editor: React.FC<EditorProps> = ({
         return;
       }
     }
-
-    if (slashMenu.open) {
-      setSlashMenu((prev) => ({ ...prev, open: false }));
-    }
+    if (slashMenu.open) setSlashMenu((prev) => ({ ...prev, open: false }));
   };
 
-  // Save a snapshot of the current note state
   const createSnapshot = (reason: string) => {
-    const currentHtml = editorRef.current?.innerHTML || note.content;
     const snap: NoteSnapshot = {
       id: `snap-${Date.now()}`,
       title: note.title,
-      content: currentHtml,
+      content: editorRef.current?.innerHTML || note.content,
       reason,
       createdAt: new Date().toISOString(),
     };
-    const existing = note.snapshots || [];
-    onUpdateNote({ snapshots: [snap, ...existing].slice(0, 15) });
+    onUpdateNote({ snapshots: [snap, ...(note.snapshots || [])].slice(0, 15) });
     logEvent({
       level: 'info',
       source: 'editor',
@@ -604,49 +512,35 @@ export const Editor: React.FC<EditorProps> = ({
   const handleRestoreSnapshot = (snap: NoteSnapshot) => {
     createSnapshot('Before Snapshot Restore');
     const safeContent = sanitizeHtml(snap.content);
-    if (editorRef.current) {
-      editorRef.current.innerHTML = safeContent;
-    }
+    if (editorRef.current) editorRef.current.innerHTML = safeContent;
     onUpdateNote({ title: snap.title, content: safeContent });
     computeStats(safeContent);
     setHistoryOpen(false);
   };
 
-  // Replace selected text in the editor with Gemini's result
-  const handleReplaceSelection = () => {
+  const applyAiResultToEditor = (mode: 'replace' | 'insert') => {
     if (!editorRef.current || !aiPanel.resultMarkdown) return;
-    createSnapshot('Before AI Replace');
+    if (mode === 'replace') createSnapshot('Before AI Replace');
     const html = sanitizeHtml(markdownToHtml(aiPanel.resultMarkdown));
 
     editorRef.current.focus();
     if (aiPanel.hasSelection && savedRangeRef.current) {
-      restoreSavedSelection();
-      document.execCommand('insertHTML', false, html);
-    } else {
-      editorRef.current.innerHTML = html;
-    }
-
-    syncEditorContent();
-    setAiPanel((prev) => ({ ...prev, open: false, resultMarkdown: '' }));
-  };
-
-  // Insert Gemini's result below the current selection or at the bottom of the note
-  const handleInsertBelow = () => {
-    if (!editorRef.current || !aiPanel.resultMarkdown) return;
-    const html = sanitizeHtml(markdownToHtml(aiPanel.resultMarkdown));
-
-    editorRef.current.focus();
-    if (aiPanel.hasSelection && savedRangeRef.current) {
-      const range = savedRangeRef.current.cloneRange();
-      range.collapse(false);
-      const sel = window.getSelection();
-      if (sel) {
-        sel.removeAllRanges();
-        sel.addRange(range);
+      if (mode === 'replace') {
+        restoreSavedSelection();
+        document.execCommand('insertHTML', false, html);
+      } else {
+        const range = savedRangeRef.current.cloneRange();
+        range.collapse(false);
+        const sel = window.getSelection();
+        if (sel) {
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+        document.execCommand('insertHTML', false, `<br>${html}`);
       }
-      document.execCommand('insertHTML', false, `<br>${html}`);
     } else {
-      editorRef.current.innerHTML = `${editorRef.current.innerHTML}${html}`;
+      editorRef.current.innerHTML =
+        mode === 'replace' ? html : `${editorRef.current.innerHTML}${html}`;
     }
 
     syncEditorContent();
@@ -659,7 +553,6 @@ export const Editor: React.FC<EditorProps> = ({
     setTimeout(() => setCopiedFeedback(false), 1800);
   };
 
-  // Tag handlers
   const handleAddTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
@@ -671,16 +564,11 @@ export const Editor: React.FC<EditorProps> = ({
     }
   };
 
-  const handleRemoveTag = (tagToRemove: string) => {
-    onUpdateNote({ tags: note.tags.filter((t) => t !== tagToRemove) });
-  };
-
   const handleAutoTitleAndTag = async () => {
     if (autoTagging) return;
     setAutoTagging(true);
-    const currentHtml = editorRef.current?.innerHTML || note.content;
     const res = await generateNoteMetadata({
-      noteContent: currentHtml,
+      noteContent: editorRef.current?.innerHTML || note.content,
       currentTitle: note.title,
       availableFolders: folders,
       settings,
@@ -690,24 +578,16 @@ export const Editor: React.FC<EditorProps> = ({
     if (res.ok) {
       const updates: Partial<Note> = {};
       if (res.title) updates.title = res.title;
-      if (res.tags && res.tags.length > 0) {
-        updates.tags = Array.from(new Set([...note.tags, ...res.tags]));
-      }
+      if (res.tags?.length) updates.tags = Array.from(new Set([...note.tags, ...res.tags]));
       if (res.folder) updates.folder = res.folder;
       onUpdateNote(updates);
     } else if (res.error) {
-      setAiPanel((prev) => ({
-        ...prev,
-        open: true,
-        error: res.error || null,
-      }));
+      setAiPanel((prev) => ({ ...prev, open: true, error: res.error || null }));
     }
   };
 
   const handleExportMarkdown = async () => {
-    const md = `# ${note.title || 'Untitled Note'}\n\n${htmlToMarkdown(
-      note.content
-    )}`;
+    const md = `# ${note.title || 'Untitled Note'}\n\n${htmlToMarkdown(note.content)}`;
     if (window.electronAPI) {
       await window.electronAPI.exportMarkdown({
         title: note.title || 'Untitled Note',
@@ -733,16 +613,8 @@ export const Editor: React.FC<EditorProps> = ({
         <div className="editor-topbar-left no-drag">
           <button
             type="button"
-            className={`icon-btn ${
-              !focusMode && layoutMode === 'three-column' ? 'active-subtle' : ''
-            }`}
-            onClick={() => {
-              if (focusMode) {
-                onToggleFocusMode();
-              } else {
-                onToggleLayoutMode();
-              }
-            }}
+            className={`icon-btn ${!focusMode && layoutMode === 'three-column' ? 'active-subtle' : ''}`}
+            onClick={() => (focusMode ? onToggleFocusMode() : onToggleLayoutMode())}
             title={
               focusMode
                 ? 'Show Sidebar (Exit Focus Mode)'
@@ -762,144 +634,25 @@ export const Editor: React.FC<EditorProps> = ({
 
         {/* Center Segmented Formatting Bar */}
         <div className="apple-segmented-format-group no-drag">
-          <button
-            type="button"
-            className="format-btn"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              execFormat('formatBlock', 'H1');
-            }}
-            title="Heading 1"
-          >
-            <Heading1 size={14} />
-          </button>
-          <button
-            type="button"
-            className="format-btn"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              execFormat('formatBlock', 'H2');
-            }}
-            title="Heading 2"
-          >
-            <Heading2 size={14} />
-          </button>
-          <button
-            type="button"
-            className="format-btn"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              execFormat('formatBlock', 'H3');
-            }}
-            title="Heading 3"
-          >
-            <Heading3 size={14} />
-          </button>
-
-          <div className="toolbar-divider" />
-
-          <button
-            type="button"
-            className="format-btn"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              execFormat('bold');
-            }}
-            title="Bold (⌘B)"
-          >
-            <Bold size={14} />
-          </button>
-          <button
-            type="button"
-            className="format-btn"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              execFormat('italic');
-            }}
-            title="Italic (⌘I)"
-          >
-            <Italic size={14} />
-          </button>
-          <button
-            type="button"
-            className="format-btn"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              execFormat('underline');
-            }}
-            title="Underline (⌘U)"
-          >
-            <Underline size={14} />
-          </button>
-          <button
-            type="button"
-            className="format-btn"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              execFormat('strikeThrough');
-            }}
-            title="Strikethrough"
-          >
-            <Strikethrough size={14} />
-          </button>
-
-          <div className="toolbar-divider" />
-
-          <button
-            type="button"
-            className="format-btn"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              execFormat('insertUnorderedList');
-            }}
-            title="Bullet List"
-          >
-            <List size={14} />
-          </button>
-          <button
-            type="button"
-            className="format-btn"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              execFormat('insertOrderedList');
-            }}
-            title="Numbered List"
-          >
-            <ListOrdered size={14} />
-          </button>
-          <button
-            type="button"
-            className="format-btn"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              execFormat('formatBlock', 'BLOCKQUOTE');
-            }}
-            title="Quote Block"
-          >
-            <Quote size={14} />
-          </button>
-          <button
-            type="button"
-            className="format-btn"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              execFormat('formatBlock', 'PRE');
-            }}
-            title="Code Block"
-          >
-            <Code size={14} />
-          </button>
-          <button
-            type="button"
-            className="format-btn"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              execFormat('insertHorizontalRule');
-            }}
-            title="Horizontal Divider"
-          >
-            <Minus size={14} />
-          </button>
+          {TOOLBAR_FORMAT_GROUPS.map((group, gIdx) => (
+            <React.Fragment key={gIdx}>
+              {gIdx > 0 && <div className="toolbar-divider" />}
+              {group.map(({ cmd, val, title, Icon }) => (
+                <button
+                  key={title}
+                  type="button"
+                  className="format-btn"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    execFormat(cmd, val);
+                  }}
+                  title={title}
+                >
+                  <Icon size={14} />
+                </button>
+              ))}
+            </React.Fragment>
+          ))}
         </div>
 
         {/* Right Actions Group */}
@@ -910,16 +663,7 @@ export const Editor: React.FC<EditorProps> = ({
               saveCurrentSelection();
               const selText = window.getSelection()?.toString().trim() || '';
               const fullText = editorRef.current?.innerText?.trim() || '';
-              setAiPanel({
-                open: true,
-                targetText: selText || fullText,
-                hasSelection: Boolean(selText),
-                loading: false,
-                resultMarkdown: '',
-                error: null,
-                lastAction: 'custom',
-                customPrompt: '',
-              });
+              openCustomAiPrompt(selText || fullText, Boolean(selText));
             }}
           >
             <Sparkles size={13} />
@@ -946,11 +690,7 @@ export const Editor: React.FC<EditorProps> = ({
           <button
             className={`icon-btn ${focusMode ? 'pinned-active' : ''}`}
             onClick={onToggleFocusMode}
-            title={
-              focusMode
-                ? 'Exit Zen Focus Mode (⌘\\)'
-                : 'Enter Zen Focus Mode (⌘\\)'
-            }
+            title={focusMode ? 'Exit Zen Focus Mode (⌘\\)' : 'Enter Zen Focus Mode (⌘\\)'}
           >
             {focusMode ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
           </button>
@@ -984,16 +724,13 @@ export const Editor: React.FC<EditorProps> = ({
       {/* Main Scrollable Writing Surface */}
       <div className="editor-scroll-area">
         <div className="editor-paper">
-          {/* Apple Notes Centered Date/Time Header */}
           <div
             className="apple-note-timestamp"
             onClick={() => setShowCreatedDate((prev) => !prev)}
             title="Click to toggle between Edited and Created date"
           >
             {showCreatedDate ? 'Created' : 'Edited'}{' '}
-            {formatAppleNotesTimestamp(
-              showCreatedDate ? note.createdAt : note.updatedAt
-            )}
+            {formatAppleNotesTimestamp(showCreatedDate ? note.createdAt : note.updatedAt)}
           </div>
 
           <input
@@ -1045,7 +782,7 @@ export const Editor: React.FC<EditorProps> = ({
                 #{tag}
                 <button
                   type="button"
-                  onClick={() => handleRemoveTag(tag)}
+                  onClick={() => onUpdateNote({ tags: note.tags.filter((t) => t !== tag) })}
                   title="Remove tag"
                 >
                   <X size={11} />
@@ -1070,9 +807,7 @@ export const Editor: React.FC<EditorProps> = ({
               <div className="ai-card-header">
                 <div className="ai-card-title">
                   <History size={15} className="accent-icon" />
-                  <span>
-                    Note Version Snapshots ({(note.snapshots || []).length})
-                  </span>
+                  <span>Note Version Snapshots ({(note.snapshots || []).length})</span>
                 </div>
                 <div className="snapshots-header-actions">
                   <button
@@ -1083,18 +818,15 @@ export const Editor: React.FC<EditorProps> = ({
                     <Plus size={12} />
                     <span>Save Checkpoint</span>
                   </button>
-                  <button
-                    className="icon-mini-btn"
-                    onClick={() => setHistoryOpen(false)}
-                  >
+                  <button className="icon-mini-btn" onClick={() => setHistoryOpen(false)}>
                     <X size={15} />
                   </button>
                 </div>
               </div>
               {!note.snapshots || note.snapshots.length === 0 ? (
                 <p className="snapshots-empty-text">
-                  No snapshots saved yet. Snapshots are created automatically
-                  before AI replacements or when you click "Save Checkpoint".
+                  No snapshots saved yet. Snapshots are created automatically before AI
+                  replacements or when you click "Save Checkpoint".
                 </p>
               ) : (
                 <div className="snapshots-list">
@@ -1128,207 +860,34 @@ export const Editor: React.FC<EditorProps> = ({
                   <Sparkles size={15} className="accent-icon" />
                   <span>
                     Gemini Writing Assistant{' '}
-                    <small>
-                      ({aiPanel.hasSelection ? 'Selected Text' : 'Full Note'})
-                    </small>
+                    <small>({aiPanel.hasSelection ? 'Selected Text' : 'Full Note'})</small>
                   </span>
                 </div>
                 <button
                   className="icon-mini-btn"
-                  onClick={() =>
-                    setAiPanel((prev) => ({ ...prev, open: false }))
-                  }
+                  onClick={() => setAiPanel((prev) => ({ ...prev, open: false }))}
                 >
                   <X size={15} />
                 </button>
               </div>
 
-              {/* Quick AI Action Pills */}
               <div className="ai-action-pills">
-                <button
-                  type="button"
-                  className="ai-pill"
-                  disabled={aiPanel.loading}
-                  onClick={() =>
-                    triggerAIAction(
-                      'rewrite',
-                      aiPanel.targetText,
-                      aiPanel.hasSelection
-                    )
-                  }
-                >
-                  <Wand2 size={13} />
-                  <span>Improve Writing</span>
-                </button>
-                <button
-                  type="button"
-                  className="ai-pill"
-                  disabled={aiPanel.loading}
-                  onClick={() =>
-                    triggerAIAction(
-                      'summarize',
-                      aiPanel.targetText,
-                      aiPanel.hasSelection
-                    )
-                  }
-                >
-                  <FileText size={13} />
-                  <span>Summarize</span>
-                </button>
-                <button
-                  type="button"
-                  className="ai-pill"
-                  disabled={aiPanel.loading}
-                  onClick={() =>
-                    triggerAIAction(
-                      'fix_grammar',
-                      aiPanel.targetText,
-                      aiPanel.hasSelection
-                    )
-                  }
-                >
-                  <Check size={13} />
-                  <span>Fix Grammar</span>
-                </button>
-                <button
-                  type="button"
-                  className="ai-pill"
-                  disabled={aiPanel.loading}
-                  onClick={() =>
-                    triggerAIAction(
-                      'shorten',
-                      aiPanel.targetText,
-                      aiPanel.hasSelection
-                    )
-                  }
-                >
-                  <Minimize2 size={13} />
-                  <span>Make Concise</span>
-                </button>
-                <button
-                  type="button"
-                  className="ai-pill"
-                  disabled={aiPanel.loading}
-                  onClick={() =>
-                    triggerAIAction(
-                      'expand',
-                      aiPanel.targetText,
-                      aiPanel.hasSelection
-                    )
-                  }
-                >
-                  <Maximize2 size={13} />
-                  <span>Expand</span>
-                </button>
-                <button
-                  type="button"
-                  className="ai-pill"
-                  disabled={aiPanel.loading}
-                  onClick={() =>
-                    triggerAIAction(
-                      'action_items',
-                      aiPanel.targetText,
-                      aiPanel.hasSelection
-                    )
-                  }
-                >
-                  <CheckSquare size={13} />
-                  <span>Action Items</span>
-                </button>
-                <button
-                  type="button"
-                  className="ai-pill"
-                  disabled={aiPanel.loading}
-                  onClick={() =>
-                    triggerAIAction(
-                      'tone_professional',
-                      aiPanel.targetText,
-                      aiPanel.hasSelection
-                    )
-                  }
-                >
-                  <Briefcase size={13} />
-                  <span>Professional Tone</span>
-                </button>
-                <button
-                  type="button"
-                  className="ai-pill"
-                  disabled={aiPanel.loading}
-                  onClick={() =>
-                    triggerAIAction(
-                      'continue_writing',
-                      aiPanel.targetText,
-                      aiPanel.hasSelection
-                    )
-                  }
-                >
-                  <Sparkles size={13} />
-                  <span>Continue Writing</span>
-                </button>
-                <button
-                  type="button"
-                  className="ai-pill"
-                  disabled={aiPanel.loading}
-                  onClick={() =>
-                    triggerAIAction(
-                      'pros_cons',
-                      aiPanel.targetText,
-                      aiPanel.hasSelection
-                    )
-                  }
-                >
-                  <Scale size={13} />
-                  <span>Pros & Cons</span>
-                </button>
-                <button
-                  type="button"
-                  className="ai-pill"
-                  disabled={aiPanel.loading}
-                  onClick={() =>
-                    triggerAIAction(
-                      'study_flashcards',
-                      aiPanel.targetText,
-                      aiPanel.hasSelection
-                    )
-                  }
-                >
-                  <BookOpen size={13} />
-                  <span>Study Flashcards</span>
-                </button>
-                <button
-                  type="button"
-                  className="ai-pill"
-                  disabled={aiPanel.loading}
-                  onClick={() =>
-                    triggerAIAction(
-                      'explain_simply',
-                      aiPanel.targetText,
-                      aiPanel.hasSelection
-                    )
-                  }
-                >
-                  <Lightbulb size={13} />
-                  <span>Explain Simply</span>
-                </button>
-                <button
-                  type="button"
-                  className="ai-pill"
-                  disabled={aiPanel.loading}
-                  onClick={() =>
-                    triggerAIAction(
-                      'translate',
-                      aiPanel.targetText,
-                      aiPanel.hasSelection,
-                      'Spanish'
-                    )
-                  }
-                >
-                  <Languages size={13} />
-                  <span>Translate (ES)</span>
-                </button>
+                {AI_QUICK_PILLS.map(({ action, label, Icon, custom }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    className="ai-pill"
+                    disabled={aiPanel.loading}
+                    onClick={() =>
+                      triggerAIAction(action, aiPanel.targetText, aiPanel.hasSelection, custom)
+                    }
+                  >
+                    <Icon size={13} />
+                    <span>{label}</span>
+                  </button>
+                ))}
               </div>
 
-              {/* Custom Instruction Input */}
               <form
                 className="ai-custom-prompt-row"
                 onSubmit={(e) => {
@@ -1347,10 +906,7 @@ export const Editor: React.FC<EditorProps> = ({
                   placeholder="Ask Gemini anything (e.g. 'Turn this into an email', 'Translate to Spanish', 'Create pros & cons')..."
                   value={aiPanel.customPrompt}
                   onChange={(e) =>
-                    setAiPanel((prev) => ({
-                      ...prev,
-                      customPrompt: e.target.value,
-                    }))
+                    setAiPanel((prev) => ({ ...prev, customPrompt: e.target.value }))
                   }
                 />
                 <button
@@ -1358,15 +914,10 @@ export const Editor: React.FC<EditorProps> = ({
                   className="ai-send-btn"
                   disabled={aiPanel.loading || !aiPanel.customPrompt.trim()}
                 >
-                  {aiPanel.loading ? (
-                    <Loader2 size={14} className="spin" />
-                  ) : (
-                    <Send size={14} />
-                  )}
+                  {aiPanel.loading ? <Loader2 size={14} className="spin" /> : <Send size={14} />}
                 </button>
               </form>
 
-              {/* Loading State */}
               {aiPanel.loading && (
                 <div className="ai-loading-box">
                   <Loader2 size={16} className="spin accent-icon" />
@@ -1374,25 +925,16 @@ export const Editor: React.FC<EditorProps> = ({
                 </div>
               )}
 
-              {/* Error State */}
               {aiPanel.error && (
                 <div className="ai-error-box">
                   <span>{aiPanel.error}</span>
                   <div className="ai-error-actions">
-                    <button
-                      type="button"
-                      className="secondary-btn"
-                      onClick={onOpenLogs}
-                    >
+                    <button type="button" className="secondary-btn" onClick={onOpenLogs}>
                       <Terminal size={13} />
                       <span>View Logs & Error Code</span>
                     </button>
                     {aiPanel.error.toLowerCase().includes('api key') && (
-                      <button
-                        type="button"
-                        className="primary-btn"
-                        onClick={onOpenSettings}
-                      >
+                      <button type="button" className="primary-btn" onClick={onOpenSettings}>
                         Configure API Key
                       </button>
                     )}
@@ -1400,7 +942,6 @@ export const Editor: React.FC<EditorProps> = ({
                 </div>
               )}
 
-              {/* Generated Result Preview & Actions */}
               {!aiPanel.loading && aiPanel.resultMarkdown && (
                 <div className="ai-result-container">
                   <div
@@ -1414,7 +955,7 @@ export const Editor: React.FC<EditorProps> = ({
                       <button
                         type="button"
                         className="primary-btn"
-                        onClick={handleReplaceSelection}
+                        onClick={() => applyAiResultToEditor('replace')}
                       >
                         <Replace size={14} />
                         <span>Replace Selection</span>
@@ -1422,34 +963,17 @@ export const Editor: React.FC<EditorProps> = ({
                     )}
                     <button
                       type="button"
-                      className={
-                        aiPanel.hasSelection ? 'secondary-btn' : 'primary-btn'
-                      }
-                      onClick={handleInsertBelow}
+                      className={aiPanel.hasSelection ? 'secondary-btn' : 'primary-btn'}
+                      onClick={() => applyAiResultToEditor('insert')}
                     >
                       <ArrowDownLeft size={14} />
                       <span>
-                        {aiPanel.hasSelection
-                          ? 'Insert Below Selection'
-                          : 'Insert into Note'}
+                        {aiPanel.hasSelection ? 'Insert Below Selection' : 'Insert into Note'}
                       </span>
                     </button>
-                    <button
-                      type="button"
-                      className="secondary-btn"
-                      onClick={handleCopyResult}
-                    >
-                      {copiedFeedback ? (
-                        <>
-                          <Check size={14} />
-                          <span>Copied!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy size={14} />
-                          <span>Copy</span>
-                        </>
-                      )}
+                    <button type="button" className="secondary-btn" onClick={handleCopyResult}>
+                      {copiedFeedback ? <Check size={14} /> : <Copy size={14} />}
+                      <span>{copiedFeedback ? 'Copied!' : 'Copy'}</span>
                     </button>
                     <button
                       type="button"
@@ -1491,64 +1015,26 @@ export const Editor: React.FC<EditorProps> = ({
       {selectionMenu.visible && (
         <div
           className="floating-selection-toolbar"
-          style={{
-            left: `${selectionMenu.x}px`,
-            top: `${selectionMenu.y}px`,
-          }}
+          style={{ left: `${selectionMenu.x}px`, top: `${selectionMenu.y}px` }}
           onMouseDown={(e) => e.preventDefault()}
         >
-          <button
-            type="button"
-            className="bubble-ai-btn primary"
-            onClick={() =>
-              triggerAIAction('rewrite', selectionMenu.selectedText, true)
-            }
-          >
-            <Sparkles size={13} />
-            <span>Improve</span>
-          </button>
-          <button
-            type="button"
-            className="bubble-ai-btn"
-            onClick={() =>
-              triggerAIAction('summarize', selectionMenu.selectedText, true)
-            }
-          >
-            <span>Summarize</span>
-          </button>
-          <button
-            type="button"
-            className="bubble-ai-btn"
-            onClick={() =>
-              triggerAIAction('fix_grammar', selectionMenu.selectedText, true)
-            }
-          >
-            <span>Fix Grammar</span>
-          </button>
-          <button
-            type="button"
-            className="bubble-ai-btn"
-            onClick={() =>
-              triggerAIAction('expand', selectionMenu.selectedText, true)
-            }
-          >
-            <span>Expand</span>
-          </button>
+          {BUBBLE_AI_ACTIONS.map(({ action, label, primary }) => (
+            <button
+              key={action}
+              type="button"
+              className={`bubble-ai-btn ${primary ? 'primary' : ''}`}
+              onClick={() => triggerAIAction(action, selectionMenu.selectedText, true)}
+            >
+              {primary && <Sparkles size={13} />}
+              <span>{label}</span>
+            </button>
+          ))}
           <button
             type="button"
             className="bubble-ai-btn"
             onClick={() => {
               setSelectionMenu((prev) => ({ ...prev, visible: false }));
-              setAiPanel({
-                open: true,
-                targetText: selectionMenu.selectedText,
-                hasSelection: true,
-                loading: false,
-                resultMarkdown: '',
-                error: null,
-                lastAction: 'custom',
-                customPrompt: '',
-              });
+              openCustomAiPrompt(selectionMenu.selectedText, true);
             }}
           >
             <span>Ask AI...</span>
@@ -1577,10 +1063,7 @@ export const Editor: React.FC<EditorProps> = ({
       {slashMenu.open && filteredSlashCommands.length > 0 && (
         <div
           className="slash-command-menu"
-          style={{
-            left: `${slashMenu.x}px`,
-            top: `${slashMenu.y}px`,
-          }}
+          style={{ left: `${slashMenu.x}px`, top: `${slashMenu.y}px` }}
           onMouseDown={(e) => e.preventDefault()}
         >
           <div className="slash-menu-header">
@@ -1590,12 +1073,8 @@ export const Editor: React.FC<EditorProps> = ({
             <button
               key={cmd.id}
               type="button"
-              className={`slash-menu-item ${
-                idx === slashMenu.selectedIndex ? 'selected' : ''
-              }`}
-              onMouseEnter={() =>
-                setSlashMenu((prev) => ({ ...prev, selectedIndex: idx }))
-              }
+              className={`slash-menu-item ${idx === slashMenu.selectedIndex ? 'selected' : ''}`}
+              onMouseEnter={() => setSlashMenu((prev) => ({ ...prev, selectedIndex: idx }))}
               onClick={() => executeSlashCommand(cmd)}
             >
               <div className="slash-item-icon">{cmd.icon}</div>

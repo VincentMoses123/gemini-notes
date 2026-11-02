@@ -1,9 +1,11 @@
-import { AppSettings, Note, NoteTemplate } from '../types';
+import { AppSettings, Note, NoteSnapshot, NoteTemplate } from '../types';
 
 const NOTES_STORAGE_KEY = 'gemini_notes_data_v1';
 const SETTINGS_STORAGE_KEY = 'gemini_notes_settings_v1';
 
 export const DEFAULT_FOLDERS = ['General', 'Work', 'Projects', 'Journal'];
+
+const todayLocaleDate = () => new Date().toLocaleDateString();
 
 export const NOTE_TEMPLATES: NoteTemplate[] = [
   {
@@ -12,11 +14,11 @@ export const NOTE_TEMPLATES: NoteTemplate[] = [
     description: 'Structured agenda, key discussion points, and action items',
     folder: 'Work',
     tags: ['meeting', 'notes'],
-    defaultTitle: `Meeting Notes — ${new Date().toLocaleDateString()}`,
+    defaultTitle: `Meeting Notes — ${todayLocaleDate()}`,
     content: `
       <h2>📋 Meeting Overview</h2>
       <ul>
-        <li><strong>Date:</strong> ${new Date().toLocaleDateString()}</li>
+        <li><strong>Date:</strong> ${todayLocaleDate()}</li>
         <li><strong>Attendees:</strong> @name1, @name2</li>
         <li><strong>Goal:</strong> Primary objective of the meeting</li>
       </ul>
@@ -38,7 +40,7 @@ export const NOTE_TEMPLATES: NoteTemplate[] = [
     description: 'Top 3 priorities for today, wins, and reflections',
     folder: 'Journal',
     tags: ['daily', 'journal'],
-    defaultTitle: `Daily Log — ${new Date().toLocaleDateString()}`,
+    defaultTitle: `Daily Log — ${todayLocaleDate()}`,
     content: `
       <h2>🎯 Top 3 Priorities Today</h2>
       <ol>
@@ -99,6 +101,9 @@ export const NOTE_TEMPLATES: NoteTemplate[] = [
   },
 ];
 
+const nowIso = new Date().toISOString();
+const oneHourAgoIso = new Date(Date.now() - 3600 * 1000).toISOString();
+
 export const DEFAULT_NOTES: Note[] = [
   {
     id: 'welcome-note-1',
@@ -120,8 +125,8 @@ export const DEFAULT_NOTES: Note[] = [
     tags: ['welcome', 'guide', 'ai'],
     pinned: true,
     trashed: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: nowIso,
+    updatedAt: nowIso,
   },
   {
     id: 'sample-brainstorm-2',
@@ -139,8 +144,8 @@ export const DEFAULT_NOTES: Note[] = [
     tags: ['product', 'ideas'],
     pinned: false,
     trashed: false,
-    createdAt: new Date(Date.now() - 3600 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 3600 * 1000).toISOString(),
+    createdAt: oneHourAgoIso,
+    updatedAt: oneHourAgoIso,
   },
 ];
 
@@ -154,6 +159,24 @@ export const DEFAULT_SETTINGS: AppSettings = {
   folders: DEFAULT_FOLDERS,
 };
 
+function readLocalJson<T>(key: string): T | null {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch (e) {
+    console.error(`Failed to read ${key} from localStorage:`, e);
+    return null;
+  }
+}
+
+function writeLocalJson(key: string, value: unknown): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {
+    console.error(`Failed to write ${key} to localStorage:`, e);
+  }
+}
+
 function normalizeNotes(notes: Note[]): Note[] {
   return notes.map((n) => ({
     ...n,
@@ -162,29 +185,52 @@ function normalizeNotes(notes: Note[]): Note[] {
   }));
 }
 
+function normalizeSettings(raw?: Partial<AppSettings> | null): AppSettings {
+  if (!raw) return DEFAULT_SETTINGS;
+  const folders =
+    Array.isArray(raw.folders) && raw.folders.length > 0
+      ? raw.folders
+      : DEFAULT_FOLDERS;
+  return {
+    ...DEFAULT_SETTINGS,
+    ...raw,
+    accentTheme: raw.accentTheme || 'sapphire',
+    layoutMode: raw.layoutMode || 'three-column',
+    folders,
+  };
+}
+
+export function prependNoteSnapshot(
+  note: Pick<Note, 'title' | 'content' | 'snapshots'>,
+  reason: string,
+  maxSnapshots = 15
+): NoteSnapshot[] {
+  const snapshot: NoteSnapshot = {
+    id: `snap-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    title: note.title || 'Untitled Note',
+    content: note.content,
+    reason,
+    createdAt: new Date().toISOString(),
+  };
+  return [snapshot, ...(note.snapshots || [])].slice(0, maxSnapshots);
+}
+
 export async function loadNotesFromStorage(): Promise<Note[]> {
   if (window.electronAPI) {
     const notes = await window.electronAPI.loadNotes();
-    if (notes && Array.isArray(notes) && notes.length > 0) {
+    if (Array.isArray(notes) && notes.length > 0) {
       return normalizeNotes(notes);
     }
     await window.electronAPI.saveNotes(DEFAULT_NOTES);
     return DEFAULT_NOTES;
   }
 
-  try {
-    const raw = localStorage.getItem(NOTES_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return normalizeNotes(parsed);
-      }
-    }
-  } catch (e) {
-    console.error('Failed to load notes from localStorage:', e);
+  const parsed = readLocalJson<Note[]>(NOTES_STORAGE_KEY);
+  if (Array.isArray(parsed) && parsed.length > 0) {
+    return normalizeNotes(parsed);
   }
 
-  localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(DEFAULT_NOTES));
+  writeLocalJson(NOTES_STORAGE_KEY, DEFAULT_NOTES);
   return DEFAULT_NOTES;
 }
 
@@ -192,60 +238,21 @@ export async function saveNotesToStorage(notes: Note[]): Promise<void> {
   if (window.electronAPI) {
     await window.electronAPI.saveNotes(notes);
   }
-  try {
-    localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(notes));
-  } catch (e) {
-    console.error('Failed to save notes to localStorage:', e);
-  }
+  writeLocalJson(NOTES_STORAGE_KEY, notes);
 }
 
 export async function loadSettingsFromStorage(): Promise<AppSettings> {
   if (window.electronAPI) {
-    const settings = await window.electronAPI.loadSettings();
-    const folders =
-      Array.isArray(settings.folders) && settings.folders.length > 0
-        ? settings.folders
-        : DEFAULT_FOLDERS;
-    return {
-      ...DEFAULT_SETTINGS,
-      ...settings,
-      accentTheme: settings.accentTheme || 'sapphire',
-      layoutMode: settings.layoutMode || 'three-column',
-      folders,
-    };
+    return normalizeSettings(await window.electronAPI.loadSettings());
   }
-
-  try {
-    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      const folders =
-        Array.isArray(parsed.folders) && parsed.folders.length > 0
-          ? parsed.folders
-          : DEFAULT_FOLDERS;
-      return {
-        ...DEFAULT_SETTINGS,
-        ...parsed,
-        accentTheme: parsed.accentTheme || 'sapphire',
-        layoutMode: parsed.layoutMode || 'three-column',
-        folders,
-      };
-    }
-  } catch (e) {
-    console.error('Failed to load settings:', e);
-  }
-  return DEFAULT_SETTINGS;
+  return normalizeSettings(readLocalJson<Partial<AppSettings>>(SETTINGS_STORAGE_KEY));
 }
 
 export async function saveSettingsToStorage(settings: AppSettings): Promise<void> {
   if (window.electronAPI) {
     await window.electronAPI.saveSettings(settings);
   }
-  try {
-    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-  } catch (e) {
-    console.error('Failed to save settings:', e);
-  }
+  writeLocalJson(SETTINGS_STORAGE_KEY, settings);
 }
 
 export function stripHtmlToText(html: string): string {
@@ -260,28 +267,21 @@ export function stripHtmlToText(html: string): string {
 
 export function htmlToMarkdown(html: string): string {
   if (!html) return '';
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-  const temp = doc.body;
+  const temp = new DOMParser().parseFromString(html, 'text/html').body;
 
   function walk(node: Node): string {
-    if (node.nodeType === Node.TEXT_NODE) {
-      return node.textContent || '';
-    }
-    if (node.nodeType !== Node.ELEMENT_NODE) {
-      return '';
-    }
+    if (node.nodeType === Node.TEXT_NODE) return node.textContent || '';
+    if (node.nodeType !== Node.ELEMENT_NODE) return '';
+
     const el = node as HTMLElement;
     const tag = el.tagName.toLowerCase();
     const children = Array.from(el.childNodes).map(walk).join('');
 
     switch (tag) {
       case 'h1':
-        return `# ${children.trim()}\n\n`;
       case 'h2':
-        return `## ${children.trim()}\n\n`;
       case 'h3':
-        return `### ${children.trim()}\n\n`;
+        return `${'#'.repeat(Number(tag[1]))} ${children.trim()}\n\n`;
       case 'p':
       case 'div':
         return `${children.trim()}\n\n`;
@@ -298,27 +298,18 @@ export function htmlToMarkdown(html: string): string {
       case 'del':
         return `~~${children}~~`;
       case 'code':
-        return el.parentElement?.tagName.toLowerCase() === 'pre'
-          ? children
-          : `\`${children}\``;
+        return el.parentElement?.tagName.toLowerCase() === 'pre' ? children : `\`${children}\``;
       case 'pre':
         return `\`\`\`\n${el.textContent?.trim() || ''}\n\`\`\`\n\n`;
       case 'blockquote':
         return `> ${children.trim().replace(/\n/g, '\n> ')}\n\n`;
       case 'ul':
-        return (
-          Array.from(el.children)
-            .map((li) => `- ${walk(li).trim()}`)
-            .join('\n') + '\n\n'
-        );
       case 'ol':
         return (
           Array.from(el.children)
-            .map((li, i) => `${i + 1}. ${walk(li).trim()}`)
+            .map((li, i) => `${tag === 'ol' ? `${i + 1}.` : '-'} ${walk(li).trim()}`)
             .join('\n') + '\n\n'
         );
-      case 'li':
-        return children;
       case 'hr':
         return `---\n\n`;
       case 'br':
@@ -331,39 +322,36 @@ export function htmlToMarkdown(html: string): string {
   return walk(temp).replace(/\n{3,}/g, '\n\n').trim();
 }
 
-export function getNoteDateBucket(
-  iso: string
-): 'Today' | 'Yesterday' | 'Previous 7 Days' | 'Previous 30 Days' | 'Earlier' {
-  const date = new Date(iso);
-  if (isNaN(date.getTime())) return 'Earlier';
+export type NoteDateBucket =
+  | 'Today'
+  | 'Yesterday'
+  | 'Previous 7 Days'
+  | 'Previous 30 Days'
+  | 'Earlier';
+
+function parseValidDate(iso: string): Date | null {
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+export function getNoteDateBucket(iso: string): NoteDateBucket {
+  const date = parseValidDate(iso);
+  if (!date) return 'Earlier';
 
   const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const startOfYesterday = new Date(startOfToday);
-  startOfYesterday.setDate(startOfToday.getDate() - 1);
-  const startOf7DaysAgo = new Date(startOfToday);
-  startOf7DaysAgo.setDate(startOfToday.getDate() - 7);
-  const startOf30DaysAgo = new Date(startOfToday);
-  startOf30DaysAgo.setDate(startOfToday.getDate() - 30);
+  const dayStart = (daysAgo: number) =>
+    new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo);
 
-  if (date >= startOfToday) {
-    return 'Today';
-  }
-  if (date >= startOfYesterday) {
-    return 'Yesterday';
-  }
-  if (date >= startOf7DaysAgo) {
-    return 'Previous 7 Days';
-  }
-  if (date >= startOf30DaysAgo) {
-    return 'Previous 30 Days';
-  }
+  if (date >= dayStart(0)) return 'Today';
+  if (date >= dayStart(1)) return 'Yesterday';
+  if (date >= dayStart(7)) return 'Previous 7 Days';
+  if (date >= dayStart(30)) return 'Previous 30 Days';
   return 'Earlier';
 }
 
 export function formatAppleNotesTimestamp(iso: string): string {
-  const date = new Date(iso);
-  if (isNaN(date.getTime())) return '';
+  const date = parseValidDate(iso);
+  if (!date) return '';
 
   const datePart = date.toLocaleDateString('en-US', {
     month: 'long',
@@ -378,19 +366,14 @@ export function formatAppleNotesTimestamp(iso: string): string {
 }
 
 export function formatShortNoteTime(iso: string): string {
-  const date = new Date(iso);
-  if (isNaN(date.getTime())) return '';
+  const date = parseValidDate(iso);
+  if (!date) return '';
 
   const bucket = getNoteDateBucket(iso);
   if (bucket === 'Today') {
-    return date.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   }
-  if (bucket === 'Yesterday') {
-    return 'Yesterday';
-  }
+  if (bucket === 'Yesterday') return 'Yesterday';
   if (bucket === 'Previous 7 Days') {
     return date.toLocaleDateString('en-US', { weekday: 'long' });
   }
@@ -400,4 +383,3 @@ export function formatShortNoteTime(iso: string): string {
     year: '2-digit',
   });
 }
-

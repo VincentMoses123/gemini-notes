@@ -31,17 +31,28 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
+const MODEL_OPTIONS: { value: GeminiModel; label: string }[] = [
+  { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash (Latest & Recommended)' },
+  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Auto-upgrades to latest Flash)' },
+  { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (Deep Reasoning & Complex Editing)' },
+  { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
+];
+
+const THEME_OPTIONS: { id: 'dark' | 'light'; label: string; Icon: React.ElementType }[] = [
+  { id: 'dark', label: 'Dark', Icon: Moon },
+  { id: 'light', label: 'Light', Icon: Sun },
+];
+
+const LAYOUT_OPTIONS: { id: LayoutMode; label: string; Icon?: React.ElementType }[] = [
+  { id: 'three-column', label: '3-Column (Apple Notes)', Icon: Columns },
+  { id: 'two-column', label: '2-Column Compact' },
+];
+
 export function formatArchLabel(arch?: string): string {
   const normalized = (arch || 'arm64').toLowerCase();
-  if (normalized === 'arm64' || normalized.includes('arm')) {
-    return 'Apple Silicon (arm64)';
-  }
-  if (normalized === 'x64' || normalized === 'x86_64') {
-    return 'Intel (x64)';
-  }
-  if (normalized === 'universal') {
-    return 'Universal macOS (arm64 + x64)';
-  }
+  if (normalized.includes('arm')) return 'Apple Silicon (arm64)';
+  if (normalized === 'x64' || normalized === 'x86_64') return 'Intel (x64)';
+  if (normalized === 'universal') return 'Universal macOS (arm64 + x64)';
   return `macOS (${normalized})`;
 }
 
@@ -51,24 +62,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
 }) => {
   const [apiKey, setApiKey] = useState(settings.apiKey || '');
-  const [model, setModel] = useState<GeminiModel>(
-    settings.model || 'gemini-3-flash-preview'
-  );
-  const [theme, setTheme] = useState<'dark' | 'light'>(
-    settings.theme || 'dark'
-  );
-  const [accentTheme, setAccentTheme] = useState<AccentTheme>(
-    settings.accentTheme || 'sapphire'
-  );
-  const [layoutMode, setLayoutMode] = useState<LayoutMode>(
-    settings.layoutMode || 'three-column'
-  );
+  const [model, setModel] = useState<GeminiModel>(settings.model || 'gemini-3-flash-preview');
+  const [theme, setTheme] = useState<'dark' | 'light'>(settings.theme || 'dark');
+  const [accentTheme, setAccentTheme] = useState<AccentTheme>(settings.accentTheme || 'sapphire');
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>(settings.layoutMode || 'three-column');
   const [showKey, setShowKey] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{
-    ok: boolean;
-    message: string;
-  } | null>(null);
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [systemInfo, setSystemInfo] = useState<SystemInfo>({
     arch: window.electronAPI?.arch || settings.arch || 'arm64',
     platform: window.electronAPI?.platform || settings.platform || 'darwin',
@@ -76,18 +76,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   useEffect(() => {
     let mounted = true;
-    if (window.electronAPI?.getSystemInfo) {
-      window.electronAPI
-        .getSystemInfo()
-        .then((info) => {
-          if (mounted && info) {
-            setSystemInfo(info);
-          }
-        })
-        .catch(() => {
-          // ignore fallback
-        });
-    }
+    window.electronAPI
+      ?.getSystemInfo?.()
+      .then((info) => {
+        if (mounted && info) setSystemInfo(info);
+      })
+      .catch(() => {});
     return () => {
       mounted = false;
     };
@@ -113,47 +107,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       action: 'summarize',
       targetText: 'Gemini Notes is connected and working properly.',
       noteTitle: 'Connection Test',
-      settings: {
-        ...settings,
-        apiKey: apiKey.trim(),
-        model,
-      },
+      settings: { ...settings, apiKey: apiKey.trim(), model },
     });
     setTesting(false);
     if (res.ok) {
       const activeModel = res.usedModel || model;
-      if (res.usedModel && res.usedModel !== model) {
-        setModel(res.usedModel);
-      }
-      setTestResult({
-        ok: true,
-        message: `Connected to ${activeModel} successfully!`,
-      });
+      if (res.usedModel && res.usedModel !== model) setModel(res.usedModel);
+      setTestResult({ ok: true, message: `Connected to ${activeModel} successfully!` });
     } else {
-      setTestResult({
-        ok: false,
-        message: res.error || 'Connection failed.',
-      });
+      setTestResult({ ok: false, message: res.error || 'Connection failed.' });
     }
   };
 
-  const handleOpenFolder = () => {
-    if (window.electronAPI) {
-      window.electronAPI.openStorageFolder();
-    }
-  };
-
-  const archLabel = formatArchLabel(systemInfo.arch || settings.arch);
-  const isArm64 = (systemInfo.arch || settings.arch || 'arm64')
-    .toLowerCase()
-    .includes('arm');
+  const resolvedArch = systemInfo.arch || settings.arch || 'arm64';
+  const archLabel = formatArchLabel(resolvedArch);
+  const isArm64 = resolvedArch.toLowerCase().includes('arm');
+  const isStandardModel = MODEL_OPTIONS.some((m) => m.value === model);
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div
-        className="modal-card settings-modal-wide"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="modal-card settings-modal-wide" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-title-group">
             <Sparkles size={17} className="accent-icon" />
@@ -165,7 +138,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         <form onSubmit={handleSave} className="modal-body">
-          {/* Color Palette & Layout Section */}
           <div className="settings-section-card">
             <div className="settings-section-title">
               <Palette size={14} className="accent-icon" />
@@ -177,21 +149,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <button
                   key={sw.id}
                   type="button"
-                  className={`palette-choice-btn ${
-                    accentTheme === sw.id ? 'active' : ''
-                  }`}
+                  className={`palette-choice-btn ${accentTheme === sw.id ? 'active' : ''}`}
                   onClick={() => {
                     setAccentTheme(sw.id);
-                    document.documentElement.setAttribute(
-                      'data-accent',
-                      sw.id
-                    );
+                    document.documentElement.setAttribute('data-accent', sw.id);
                   }}
                 >
-                  <span
-                    className="palette-choice-dot"
-                    style={{ backgroundColor: sw.color }}
-                  />
+                  <span className="palette-choice-dot" style={{ backgroundColor: sw.color }} />
                   <span>{sw.label}</span>
                 </button>
               ))}
@@ -199,60 +163,34 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
             <div className="appearance-layout-row">
               <div className="segmented-toggle-group">
-                <button
-                  type="button"
-                  className={`segmented-option ${
-                    theme === 'dark' ? 'active' : ''
-                  }`}
-                  onClick={() => {
-                    setTheme('dark');
-                    document.documentElement.setAttribute(
-                      'data-theme',
-                      'dark'
-                    );
-                  }}
-                >
-                  <Moon size={13} />
-                  <span>Dark</span>
-                </button>
-                <button
-                  type="button"
-                  className={`segmented-option ${
-                    theme === 'light' ? 'active' : ''
-                  }`}
-                  onClick={() => {
-                    setTheme('light');
-                    document.documentElement.setAttribute(
-                      'data-theme',
-                      'light'
-                    );
-                  }}
-                >
-                  <Sun size={13} />
-                  <span>Light</span>
-                </button>
+                {THEME_OPTIONS.map(({ id, label, Icon }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className={`segmented-option ${theme === id ? 'active' : ''}`}
+                    onClick={() => {
+                      setTheme(id);
+                      document.documentElement.setAttribute('data-theme', id);
+                    }}
+                  >
+                    <Icon size={13} />
+                    <span>{label}</span>
+                  </button>
+                ))}
               </div>
 
               <div className="segmented-toggle-group">
-                <button
-                  type="button"
-                  className={`segmented-option ${
-                    layoutMode === 'three-column' ? 'active' : ''
-                  }`}
-                  onClick={() => setLayoutMode('three-column')}
-                >
-                  <Columns size={13} />
-                  <span>3-Column (Apple Notes)</span>
-                </button>
-                <button
-                  type="button"
-                  className={`segmented-option ${
-                    layoutMode === 'two-column' ? 'active' : ''
-                  }`}
-                  onClick={() => setLayoutMode('two-column')}
-                >
-                  <span>2-Column Compact</span>
-                </button>
+                {LAYOUT_OPTIONS.map(({ id, label, Icon }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className={`segmented-option ${layoutMode === id ? 'active' : ''}`}
+                    onClick={() => setLayoutMode(id)}
+                  >
+                    {Icon && <Icon size={13} />}
+                    <span>{label}</span>
+                  </button>
+                ))}
               </div>
             </div>
           </div>
@@ -280,8 +218,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
             <p className="form-hint">
               Stored locally on your Mac. Get a key from Google AI Studio (
-              <code>aistudio.google.com</code>) or set{' '}
-              <code>GEMINI_API_KEY</code> in your environment.
+              <code>aistudio.google.com</code>) or set <code>GEMINI_API_KEY</code> in your
+              environment.
             </p>
           </div>
 
@@ -290,28 +228,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <Sparkles size={14} />
               <span>Gemini Model</span>
             </label>
-            <select
-              value={model}
-              onChange={(e) => setModel(e.target.value as GeminiModel)}
-            >
-              {![
-                'gemini-3-flash-preview',
-                'gemini-2.5-flash',
-                'gemini-2.5-pro',
-                'gemini-2.0-flash',
-              ].includes(model) && (
-                <option value={model}>{model} (Auto-detected)</option>
-              )}
-              <option value="gemini-3-flash-preview">
-                Gemini 3 Flash (Latest & Recommended)
-              </option>
-              <option value="gemini-2.5-flash">
-                Gemini 2.5 Flash (Auto-upgrades to latest Flash)
-              </option>
-              <option value="gemini-2.5-pro">
-                Gemini 2.5 Pro (Deep Reasoning & Complex Editing)
-              </option>
-              <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+            <select value={model} onChange={(e) => setModel(e.target.value as GeminiModel)}>
+              {!isStandardModel && <option value={model}>{model} (Auto-detected)</option>}
+              {MODEL_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -333,45 +256,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </button>
 
             {testResult && (
-              <div
-                className={`test-feedback ${
-                  testResult.ok ? 'success' : 'error'
-                }`}
-              >
-                {testResult.ok ? (
-                  <CheckCircle2 size={15} />
-                ) : (
-                  <AlertCircle size={15} />
-                )}
+              <div className={`test-feedback ${testResult.ok ? 'success' : 'error'}`}>
+                {testResult.ok ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />}
                 <span>{testResult.message}</span>
               </div>
             )}
           </div>
 
-          {/* System Architecture & Storage Diagnostics Box */}
           <div className="form-group storage-info-box">
             <div className="system-storage-details">
               <div className="system-arch-row">
                 <strong>Runtime Architecture</strong>
                 <span
-                  className={`arch-badge ${
-                    isArm64 ? 'apple-silicon' : 'intel'
-                  }`}
+                  className={`arch-badge ${isArm64 ? 'apple-silicon' : 'intel'}`}
                   title="Native macOS process architecture"
                 >
                   <Cpu size={12} />
                   <span>{archLabel}</span>
                 </span>
               </div>
-              <p className="form-hint">
-                Storage: {settings.storagePath || 'Local App Data'}
-              </p>
+              <p className="form-hint">Storage: {settings.storagePath || 'Local App Data'}</p>
             </div>
             {window.electronAPI && (
               <button
                 type="button"
                 className="secondary-btn"
-                onClick={handleOpenFolder}
+                onClick={() => window.electronAPI?.openStorageFolder()}
               >
                 <FolderOpen size={14} />
                 <span>Show in Finder</span>
