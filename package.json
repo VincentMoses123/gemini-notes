@@ -13,7 +13,8 @@
     "package:mac": "npm run build && node scripts/package-mac.cjs --arch=universal",
     "package:mac:arm64": "npm run build && node scripts/package-mac.cjs --arch=arm64",
     "package:mac:x64": "npm run build && node scripts/package-mac.cjs --arch=x64",
-    "package:mac:universal": "npm run build && node scripts/package-mac.cjs --arch=universal"
+    "package:mac:universal": "npm run build && node scripts/package-mac.cjs --arch=universal",
+    "preview:website": "vite website --port 4173"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

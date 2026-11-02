@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" data-accent="sapphire">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gemini Notes — Your Thoughts, Supercharged by Gemini</title>
+  <meta name="description" content="A refined macOS Apple Notes-inspired workspace powered by Google Gemini 2.5. Native 3-column layout, 5 non-yellow studio themes, zero-trust security, and local-first privacy." />
+  <link rel="icon" type="image/png" href="./assets/app-icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <!-- Ambient Background Glow -->
+  <div class="ambient-glow ambient-glow-1" aria-hidden="true"></div>
+  <div class="ambient-glow ambient-glow-2" aria-hidden="true"></div>
+
+  <!-- Top Navigation -->
+  <header class="site-header" id="top">
+    <div class="container nav-container">
+      <a href="#top" class="brand-logo" aria-label="Gemini Notes Home">
+        <span class="brand-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3l1.912 5.813a2 2 0 001.275 1.275L21 12l-5.813 1.912a2 2 0 00-1.275 1.275L12 21l-1.912-5.813a2 2 0 00-1.275-1.275L3 12l5.813-1.912a2 2 0 001.275-1.275L12 3z" />
+          </svg>
+        </span>
+        <span class="brand-text">Gemini Notes</span>
+        <span class="version-pill">v2.4 Universal</span>
+      </a>
+
+      <nav class="nav-links" aria-label="Primary Navigation">
+        <a href="#demo" class="nav-link">Live AI Demo</a>
+        <a href="#features" class="nav-link">Features</a>
+        <a href="#themes" class="nav-link">Studio Themes</a>
+        <a href="#security" class="nav-link">Security &amp; Architecture</a>
+        <a href="#faq" class="nav-link">FAQ</a>
+      </nav>
+
+      <div class="nav-actions">
+        <button type="button" id="themeToggleBtn" class="icon-btn" title="Toggle Dark / Light Appearance" aria-label="Toggle Dark / Light Appearance">
+          <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"></path>
+          </svg>
+        </button>
+        <a href="#download" class="btn btn-primary btn-sm">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>Download</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero Section -->
+    <section class="hero-section">
+      <div class="container">
+        <div class="hero-copy">
+          <div class="eyebrow-badge">
+            <span class="status-dot"></span>
+            <span>macOS Apple Notes Craftsmanship • Powered by Gemini 2.5 Flash &amp; Pro</span>
+          </div>
+
+          <h1 class="hero-title">
+            Your Thoughts, <span class="gradient-accent-text">Supercharged by Gemini.</span>
+          </h1>
+
+          <p class="hero-subtitle">
+            Experience the speed and familiarity of a native macOS 3-column Apple Notes workspace—elevated with inline Gemini AI writing tools, five curated non-yellow studio color palettes, and zero-trust local storage.
+          </p>
+
+          <div class="hero-cta-group">
+            <a href="#download" class="btn btn-primary btn-lg">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.33c.64-.78 1.08-1.86.96-2.94-.93.04-2.06.62-2.72 1.4-.58.68-1.1 1.79-.96 2.84 1.04.08 2.08-.52 2.72-1.3z"/>
+              </svg>
+              <div class="btn-label-stack">
+                <span>Download for macOS</span>
+                <small>Universal Binary (Apple Silicon arm64 &amp; Intel x64)</small>
+              </div>
+            </a>
+
+            <a href="https://github.com" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-lg">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+              </svg>
+              <span>View on GitHub</span>
+            </a>
+          </div>
+
+          <!-- Quick Interactive Accent Switcher Bar above Mock Window -->
+          <div class="hero-quick-controls" aria-label="Live Mock Window Controls">
+            <span class="quick-control-label">Live Accent Preview:</span>
+            <div class="swatch-bar" role="group" aria-label="Color Accent Palettes">
+              <button type="button" class="swatch-pill active" data-set-accent="sapphire">
+                <span class="swatch-dot" style="background:#3b82f6"></span>
+                <span>Ocean Sapphire</span>
+              </button>
+              <button type="button" class="swatch-pill" data-set-accent="emerald">
+                <span class="swatch-dot" style="background:#10b981"></span>
+                <span>Emerald Studio</span>
+              </button>
+              <button type="button" class="swatch-pill" data-set-accent="copper">
+                <span class="swatch-dot" style="background:#d97706"></span>
+                <span>Amber Classic</span>
+              </button>
+              <button type="button" class="swatch-pill" data-set-accent="indigo">
+                <span class="swatch-dot" style="background:#6366f1"></span>
+                <span>Nordic Indigo</span>
+              </button>
+              <button type="button" class="swatch-pill" data-set-accent="slate">
+                <span class="swatch-dot" style="background:#64748b"></span>
+                <span>Monochrome Graphite</span>
+              </button>
+            </div>
+            <button type="button" id="mockLayoutToggle" class="layout-toggle-chip" title="Switch between 3-Column and 2-Column Apple Notes Layout">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                <line x1="9" y1="3" x2="9" y2="21"></line>
+                <line x1="15" y1="3" x2="15" y2="21"></line>
+              </svg>
+              <span id="mockLayoutLabel">3-Column Layout</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Interactive 3-Column macOS App Window Mockup -->
+        <div class="macos-window-frame" id="heroAppWindow" data-layout="three-column">
+          <!-- Window Topbar / Chrome -->
+          <div class="macos-titlebar">
+            <div class="macos-traffic-lights" aria-hidden="true">
+              <span class="traffic-dot close"></span>
+              <span class="traffic-dot minimize"></span>
+              <span class="traffic-dot expand"></span>
+            </div>
+
+            <div class="macos-toolbar-center">
+              <div class="segmented-group">
+                <button type="button" class="seg-btn" title="Bold (⌘B)"><strong>B</strong></button>
+                <button type="button" class="seg-btn" title="Italic (⌘I)"><em>I</em></button>
+                <button type="button" class="seg-btn" title="Underline (⌘U)"><u>U</u></button>
+                <button type="button" class="seg-btn" title="Heading 1">H1</button>
+                <button type="button" class="seg-btn" title="Checklist">☑</button>
+                <button type="button" class="seg-btn" title="Code Block">&lt;/&gt;</button>
+              </div>
+
+              <button type="button" class="mock-ai-trigger-btn" id="mockAiSparkleBtn">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <path d="M12 3l1.912 5.813a2 2 0 001.275 1.275L21 12l-5.813 1.912a2 2 0 00-1.275 1.275L12 21l-1.912-5.813a2 2 0 00-1.275-1.275L3 12l5.813-1.912a2 2 0 001.275-1.275L12 3z" />
+                </svg>
+                <span>Ask Gemini</span>
+                <kbd>⌘J</kbd>
+              </button>
+            </div>
+
+            <div class="macos-toolbar-right">
+              <span class="arch-chip">arm64 • Local Vault</span>
+              <span class="save-pill">Saved</span>
+            </div>
+          </div>
+
+          <!-- 3-Column Body -->
+          <div class="macos-app-body">
+            <!-- Column 1: Folders & Smart Views -->
+            <aside class="mock-col-folders" aria-label="Folders Sidebar">
+              <div class="mock-sidebar-section">
+                <div class="mock-section-header">Smart Views</div>
+                <div class="mock-folder-item active" data-folder="all">
+                  <span class="folder-label">All Notes</span>
+                  <span class="folder-count">14</span>
+                </div>
+                <div class="mock-folder-item" data-folder="pinned">
+                  <span class="folder-label">Pinned</span>
+                  <span class="folder-count">3</span>
+                </div>
+                <div class="mock-folder-item" data-folder="trash">
+                  <span class="folder-label">Recently Deleted</span>
+                  <span class="folder-count">0</span>
+                </div>
+              </div>
+
+              <div class="mock-sidebar-section">
+                <div class="mock-section-header">Folders</div>
+                <div class="mock-folder-item">
+                  <span class="folder-label">📁 Architecture</span>
+                  <span class="folder-count">6</span>
+                </div>
+                <div class="mock-folder-item">
+                  <span class="folder-label">📁 AI Research</span>
+                  <span class="folder-count">5</span>
+                </div>
+                <div class="mock-folder-item">
+                  <span class="folder-label">📁 Design System</span>
+                  <span class="folder-count">3</span>
+                </div>
+              </div>
+
+              <div class="mock-sidebar-section">
+                <div class="mock-section-header">Tags</div>
+                <div class="mock-tag-cloud">
+                  <span class="mock-tag">#gemini-2.5</span>
+                  <span class="mock-tag">#security</span>
+                  <span class="mock-tag">#macos</span>
+                  <span class="mock-tag">#roadmap</span>
+                </div>
+              </div>
+            </aside>
+
+            <!-- Column 2: Chronological Note List -->
+            <section class="mock-col-notelist" aria-label="Note List">
+              <div class="mock-search-box">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <span>Search 14 local notes... (⌘K)</span>
+              </div>
+
+              <div class="mock-list-group-label">📌 Pinned</div>
+              <div class="mock-note-card active" data-note-id="architecture">
+                <div class="mock-note-title">Q4 Systems Architecture &amp; Security Spec</div>
+                <div class="mock-note-meta">
+                  <span class="mock-note-time">10:42 AM</span>
+                  <span class="mock-note-preview">Zero-trust IPC isolation, 0o600 local vault permissions...</span>
+                </div>
+                <div class="mock-note-badges">
+                  <span class="mini-badge">Architecture</span>
+                  <span class="mini-badge">#security</span>
+                </div>
+              </div>
+
+              <div class="mock-note-card" data-note-id="design">
+                <div class="mock-note-title">Apple Notes Studio Palette Tokens</div>
+                <div class="mock-note-meta">
+                  <span class="mock-note-time">Yesterday</span>
+                  <span class="mock-note-preview">Sapphire, Emerald, Amber Classic, Nordic Indigo, Slate...</span>
+                </div>
+                <div class="mock-note-badges">
+                  <span class="mini-badge">Design System</span>
+                  <span class="mini-badge">#macos</span>
+                </div>
+              </div>
+
+              <div class="mock-list-group-label">Today</div>
+              <div class="mock-note-card" data-note-id="prompts">
+                <div class="mock-note-title">Gemini 2.5 Inline Prompt Workflows</div>
+                <div class="mock-note-meta">
+                  <span class="mock-note-time">9:15 AM</span>
+                  <span class="mock-note-preview">Slash commands (/), floating bubble menu, auto-title &amp; tags...</span>
+                </div>
+                <div class="mock-note-badges">
+                  <span class="mini-badge">AI Research</span>
+                  <span class="mini-badge">#gemini-2.5</span>
+                </div>
+              </div>
+            </section>
+
+            <!-- Column 3: Rich Editor Canvas -->
+            <section class="mock-col-editor" aria-label="Note Editor">
+              <div class="mock-editor-date" id="mockEditorDate">November 1, 2026 at 10:42 AM — 148 words · 1 min read</div>
+
+              <h2 class="mock-editor-title" id="mockEditorTitle">Q4 Systems Architecture &amp; Security Spec</h2>
+
+              <div class="mock-editor-tags" id="mockEditorTags">
+                <span class="editor-tag-pill">📁 Architecture</span>
+                <span class="editor-tag-pill">#security</span>
+                <span class="editor-tag-pill">#gemini-2.5</span>
+              </div>
+
+              <!-- Interactive Inline Gemini Bar inside Mockup -->
+              <div class="mock-inline-ai-bar" id="mockInlineAiBar">
+                <div class="inline-ai-header">
+                  <span class="ai-sparkle-badge">✦ Gemini 2.5 Assistant</span>
+                  <span class="ai-hint">Click an action below to transform the note live:</span>
+                </div>
+                <div class="inline-ai-pills">
+                  <button type="button" class="inline-ai-pill" data-mock-action="summarize">📝 Summarize</button>
+                  <button type="button" class="inline-ai-pill" data-mock-action="actions">✅ Action Items</button>
+                  <button type="button" class="inline-ai-pill" data-mock-action="polish">✨ Executive Polish</button>
+                  <button type="button" class="inline-ai-pill" data-mock-action="reset">↺ Restore Original</button>
+                </div>
+              </div>
+
+              <div class="mock-editor-content" id="mockEditorContent">
+                <p>Gemini Notes combines a native <strong>macOS Electron architecture</strong> with strict process sandboxing and direct Google Gemini 2.5 SDK execution.</p>
+                <ul>
+                  <li><strong>Context Isolation:</strong> Renderer runs with <code>contextIsolation: true</code> and <code>nodeIntegration: false</code>.</li>
+                  <li><strong>Hardened Local Vault:</strong> Notes and snapshots are persisted atomically with <code>0o600</code> owner-only permissions.</li>
+                  <li><strong>DOM XSS Sanitization:</strong> Every AI response and HTML clipboard payload passes through our custom allowlist sanitizer before insertion.</li>
+                </ul>
+                <blockquote>Tip: Click any note card in the middle column or trigger a Gemini pill above to test the live workspace!</blockquote>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Live AI Demo Widget Section -->
+    <section class="section demo-section" id="demo">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-tag">Interactive Playground</span>
+          <h2 class="section-title">Test the Inline Gemini Assistant Right Now</h2>
+          <p class="section-desc">
+            Select a sample note—or type your own rough thoughts below—and run Gemini Notes' built-in writing transformations directly in your browser.
+          </p>
+        </div>
+
+        <div class="demo-workbench">
+          <!-- Left Controls: Sample Presets + AI Actions -->
+          <div class="demo-sidebar">
+            <div class="demo-panel-block">
+              <label class="demo-block-label" for="demoPresetSelect">1. Choose a Sample Note or Edit Freely</label>
+              <div class="preset-buttons" id="demoPresetButtons">
+                <button type="button" class="preset-btn active" data-preset="meeting">📋 Rough Product Sync Notes</button>
+                <button type="button" class="preset-btn" data-preset="draft">✍️ Unpolished Engineering Draft</button>
+                <button type="button" class="preset-btn" data-preset="research">🔬 PKM Architecture Brainstorm</button>
+              </div>
+            </div>
+
+            <div class="demo-panel-block">
+              <span class="demo-block-label">2. Run a Gemini Transformation</span>
+              <div class="demo-action-grid">
+                <button type="button" class="demo-ai-btn" data-ai-transform="grammar">
+                  <span class="demo-ai-icon">✨</span>
+                  <div>
+                    <strong>Fix Grammar &amp; Polish</strong>
+                    <small>Clean syntax &amp; professional tone</small>
+                  </div>
+                </button>
+
+                <button type="button" class="demo-ai-btn" data-ai-transform="tasks">
+                  <span class="demo-ai-icon">✅</span>
+                  <div>
+                    <strong>Extract Action Items</strong>
+                    <small>Pull owners, deadlines &amp; tasks</small>
+                  </div>
+                </button>
+
+                <button type="button" class="demo-ai-btn" data-ai-transform="summarize">
+                  <span class="demo-ai-icon">📝</span>
+                  <div>
+                    <strong>TL;DR Summary</strong>
+                    <small>3-bullet executive synthesis</small>
+                  </div>
+                </button>
+
+                <button type="button" class="demo-ai-btn" data-ai-transform="concise">
+                  <span class="demo-ai-icon">⚡</span>
+                  <div>
+                    <strong>Make Shorter &amp; Punchy</strong>
+                    <small>Strip fluff while keeping key facts</small>
+                  </div>
+                </button>
+
+                <button type="button" class="demo-ai-btn" data-ai-transform="translate">
+                  <span class="demo-ai-icon">🌍</span>
+                  <div>
+                    <strong>Translate (ES / JP)</strong>
+                    <small>Bilingual localization preview</small>
+                  </div>
+                </button>
+
+                <button type="button" class="demo-ai-btn" data-ai-transform="autotag">
+                  <span class="demo-ai-icon">🏷️</span>
+                  <div>
+                    <strong>Auto-Title &amp; Smart Tags</strong>
+                    <small>Generate title + taxonomy tags</small>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Canvas: Editable Source + Live AI Output -->
+          <div class="demo-canvas-card">
+            <div class="demo-canvas-header">
+              <div class="demo-canvas-tabs">
+                <span class="canvas-tab active">Live Note Buffer</span>
+                <span class="model-badge">Model: gemini-2.5-flash</span>
+              </div>
+              <button type="button" class="btn-text-reset" id="demoResetBtn">↺ Reset Note</button>
+            </div>
+
+            <textarea
+              id="demoInputTextarea"
+              class="demo-textarea"
+              rows="7"
+              aria-label="Editable Note Content for Live AI Demo"
+            ></textarea>
+
+            <div class="demo-output-panel" id="demoOutputPanel">
+              <div class="demo-output-header">
+                <div class="output-status">
+                  <span class="sparkle-pulse">✦</span>
+                  <strong id="demoOutputTitle">Gemini AI Output Preview</strong>
+                </div>
+                <span class="latency-badge" id="demoLatencyBadge">Ready • Click any tool on the left</span>
+              </div>
+
+              <div class="demo-output-body" id="demoOutputBody">
+                Select any of the <strong>6 Gemini AI tools</strong> on the left to see how Gemini Notes transforms your writing inline—with option to <em>Replace Selection</em> or <em>Insert Below</em>.
+              </div>
+
+              <div class="demo-output-actions" id="demoOutputActions" hidden>
+                <button type="button" class="btn btn-primary btn-xs" id="demoApplyReplaceBtn">✓ Replace Note with Result</button>
+                <button type="button" class="btn btn-secondary btn-xs" id="demoApplyAppendBtn">+ Insert Below Note</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6-Card High-Impact Feature Grid -->
+    <section class="section features-section" id="features">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-tag">Engineered for Flow</span>
+          <h2 class="section-title">Everything You Love About Apple Notes. Supercharged.</h2>
+          <p class="section-desc">
+            Zero bloat, instant keyboard navigation, and deeply integrated AI that stays out of your way until the exact moment you summon it.
+          </p>
+        </div>
+
+        <div class="feature-grid">
+          <!-- Card 1 -->
+          <article class="feature-card">
+            <div class="feature-icon-wrap">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 3l1.912 5.813a2 2 0 001.275 1.275L21 12l-5.813 1.912a2 2 0 00-1.275 1.275L12 21l-1.912-5.813a2 2 0 00-1.275-1.275L3 12l5.813-1.912a2 2 0 001.275-1.275L12 3z" />
+              </svg>
+            </div>
+            <h3>Inline Gemini Assistant &amp; Slash Menu</h3>
+            <p>
+              Press <kbd>⌘J</kbd>, type <kbd>/</kbd> anywhere on a line, or highlight text to summon the floating bubble menu. Preview AI output before replacing or inserting below.
+            </p>
+            <ul class="feature-mini-list">
+              <li>19 Slash commands for AI &amp; rich formatting</li>
+              <li>Chat with All Notes across your entire vault</li>
+            </ul>
+          </article>
+
+          <!-- Card 2 -->
+          <article class="feature-card">
+            <div class="feature-icon-wrap">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                <line x1="9" y1="3" x2="9" y2="21"></line>
+                <line x1="15" y1="3" x2="15" y2="21"></line>
+              </svg>
+            </div>
+            <h3>Apple Notes 3-Column &amp; 2-Column UX</h3>
+            <p>
+              Organize effortlessly with dedicated Folders &amp; Smart Views in Column 1, chronological date-bucketed note cards in Column 2, and a distraction-free canvas in Column 3.
+            </p>
+            <ul class="feature-mini-list">
+              <li>One-click switch between 3-Column &amp; 2-Column</li>
+              <li>True Focus Mode (<kbd>⌘⇧F</kbd>) hides all chrome</li>
+            </ul>
+          </article>
+
+          <!-- Card 3 -->
+          <article class="feature-card">
+            <div class="feature-icon-wrap">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+                <rect x="9" y="9" width="6" height="6"></rect>
+                <line x1="9" y1="1" x2="9" y2="4"></line>
+                <line x1="15" y1="1" x2="15" y2="4"></line>
+                <line x1="9" y1="20" x2="9" y2="23"></line>
+                <line x1="15" y1="20" x2="15" y2="23"></line>
+                <line x1="20" y1="9" x2="23" y2="9"></line>
+                <line x1="20" y1="14" x2="23" y2="14"></line>
+                <line x1="1" y1="9" x2="4" y2="9"></line>
+                <line x1="1" y1="14" x2="4" y2="14"></line>
+              </svg>
+            </div>
+            <h3>Universal Apple Silicon Native</h3>
+            <p>
+              Compiled for peak responsiveness on Apple M1/M2/M3/M4 (`arm64`) as well as Intel Macs (`x64`), with live runtime architecture telemetry in Settings &amp; Diagnostic Logs.
+            </p>
+            <ul class="feature-mini-list">
+              <li>Sub-frame native window vibrancy &amp; typography</li>
+              <li>Zero external database daemon overhead</li>
+            </ul>
+          </article>
+
+          <!-- Card 4 -->
+          <article class="feature-card">
+            <div class="feature-icon-wrap">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              </svg>
+            </div>
+            <h3>Zero-Trust Hardened Security</h3>
+            <p>
+              Built from the ground up with strict Content Security Policy (CSP), context-isolated IPC bridges, allowlist HTML sanitization, and OS keychain API key encryption.
+            </p>
+            <ul class="feature-mini-list">
+              <li><code>0o600</code> owner-only filesystem permissions</li>
+              <li><code>safeStorage</code> encrypted Gemini API keys</li>
+            </ul>
+          </article>
+
+          <!-- Card 5 -->
+          <article class="feature-card">
+            <div class="feature-icon-wrap">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+              </svg>
+            </div>
+            <h3>Privacy-First Local JSON Storage</h3>
+            <p>
+              Your notes live on your Mac—never on a third-party cloud database. Atomic write-then-rename operations and version history snapshots protect every keystroke.
+            </p>
+            <ul class="feature-mini-list">
+              <li>Instant point-in-time Snapshot Restore</li>
+              <li>1-click Markdown (<code>.md</code>), TXT &amp; JSON export</li>
+            </ul>
+          </article>
+
+          <!-- Card 6 -->
+          <article class="feature-card">
+            <div class="feature-icon-wrap">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+              </svg>
+            </div>
+            <h3>14+ Precision Writing &amp; PKM Tools</h3>
+            <p>
+              From tone shifting (Executive, Academic, Casual) to Auto-Title &amp; Tagging, starter templates, and a global Command Palette (<kbd>⌘K</kbd>) for total keyboard mastery.
+            </p>
+            <ul class="feature-mini-list">
+              <li>6 built-in Starter Templates for rapid capture</li>
+              <li>Structured Error Code &amp; Telemetry Inspector</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Studio Theme Previewer Section -->
+    <section class="section themes-section" id="themes">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-tag">Bespoke Design System</span>
+          <h2 class="section-title">Five Non-Yellow Studio Color Palettes</h2>
+          <p class="section-desc">
+            Classic Apple Notes locked you into canary yellow. Gemini Notes introduces five calibrated, low-fatigue studio palettes engineered for both Dark and Light macOS appearances.
+          </p>
+        </div>
+
+        <div class="theme-studio-card">
+          <div class="theme-cards-grid" id="themeCardsGrid">
+            <button type="button" class="theme-option-card active" data-set-accent="sapphire">
+              <div class="theme-swatch-header">
+                <span class="swatch-circle" style="background: linear-gradient(135deg, #3b82f6, #2563eb)"></span>
+                <span class="theme-active-indicator">Active</span>
+              </div>
+              <h4>Ocean Sapphire</h4>
+              <p>Crisp macOS system blue for high-contrast clarity and technical focus.</p>
+              <code>--accent: #3b82f6</code>
+            </button>
+
+            <button type="button" class="theme-option-card" data-set-accent="emerald">
+              <div class="theme-swatch-header">
+                <span class="swatch-circle" style="background: linear-gradient(135deg, #10b981, #059669)"></span>
+                <span class="theme-active-indicator">Active</span>
+              </div>
+              <h4>Emerald Studio</h4>
+              <p>Calm botanical green designed for long-form research and deep synthesis.</p>
+              <code>--accent: #10b981</code>
+            </button>
+
+            <button type="button" class="theme-option-card" data-set-accent="copper">
+              <div class="theme-swatch-header">
+                <span class="swatch-circle" style="background: linear-gradient(135deg, #d97706, #b45309)"></span>
+                <span class="theme-active-indicator">Active</span>
+              </div>
+              <h4>Amber Classic</h4>
+              <p>Warm editorial terracotta and burnished copper without harsh yellow glare.</p>
+              <code>--accent: #d97706</code>
+            </button>
+
+            <button type="button" class="theme-option-card" data-set-accent="indigo">
+              <div class="theme-swatch-header">
+                <span class="swatch-circle" style="background: linear-gradient(135deg, #6366f1, #4f46e5)"></span>
+                <span class="theme-active-indicator">Active</span>
+              </div>
+              <h4>Nordic Indigo</h4>
+              <p>Deep atmospheric violet-blue tuned for late-night engineering and AI workflows.</p>
+              <code>--accent: #6366f1</code>
+            </button>
+
+            <button type="button" class="theme-option-card" data-set-accent="slate">
+              <div class="theme-swatch-header">
+                <span class="swatch-circle" style="background: linear-gradient(135deg, #64748b, #475569)"></span>
+                <span class="theme-active-indicator">Active</span>
+              </div>
+              <h4>Monochrome Graphite</h4>
+              <p>Ultra-minimalist architectural neutral where only your typography takes center stage.</p>
+              <code>--accent: #64748b</code>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Security & Tri-Agent Architecture Section -->
+    <section class="section security-section" id="security">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-tag">Defense-in-Depth &amp; Systems Engineering</span>
+          <h2 class="section-title">Hardened Security &amp; Tri-Agent Architecture</h2>
+          <p class="section-desc">
+            Every layer of Gemini Notes—from Electron IPC boundaries to DOM sanitization—was architected and verified through a specialized tri-agent engineering workflow.
+          </p>
+        </div>
+
+        <div class="security-grid">
+          <div class="security-pillar">
+            <div class="pillar-header">
+              <span class="pillar-badge">Layer 01</span>
+              <h3>Strict CSP &amp; DOM XSS Sanitizer</h3>
+            </div>
+            <p>
+              All AI-generated HTML and rich-text paste buffers pass through a deterministic allowlist sanitizer (<code>src/services/sanitizer.ts</code>) that strips executable scripts, inline event handlers, and unsafe URI schemes before touching the DOM.
+            </p>
+          </div>
+
+          <div class="security-pillar">
+            <div class="pillar-header">
+              <span class="pillar-badge">Layer 02</span>
+              <h3>Sandboxed IPC &amp; OS Keychain</h3>
+            </div>
+            <p>
+              The Electron renderer runs with <code>contextIsolation: true</code>, <code>nodeIntegration: false</code>, and a strictly typed preload bridge. Gemini API keys are encrypted at rest via macOS Keychain (<code>safeStorage</code>).
+            </p>
+          </div>
+
+          <div class="security-pillar">
+            <div class="pillar-header">
+              <span class="pillar-badge">Layer 03</span>
+              <h3>Atomic <code>0o600</code> Vault Persistence</h3>
+            </div>
+            <p>
+              Local storage files (<code>notes.json</code>, <code>settings.json</code>, and encrypted credentials) enforce strict <code>0o600</code> owner-only POSIX file permissions with atomic temp-file write-and-rename durability.
+            </p>
+          </div>
+        </div>
+
+        <!-- Tri-Agent Development Architecture Diagram Card -->
+        <div class="tri-agent-banner">
+          <div class="tri-agent-info">
+            <span class="section-tag">How Gemini Notes Was Built</span>
+            <h3>Coordinated Tri-Agent Engineering</h3>
+            <p>
+              Gemini Notes is developed and continuously verified by three specialized autonomous engineering roles working in concert on isolated branches before production release.
+            </p>
+          </div>
+
+          <div class="tri-agent-nodes">
+            <div class="agent-node">
+              <span class="agent-role-badge">Lead Orchestrator</span>
+              <strong>Head Systems Engineer</strong>
+              <p>Architecture governance, build verification, release packaging, and cross-agent integration.</p>
+            </div>
+            <div class="agent-node">
+              <span class="agent-role-badge">ui-worker</span>
+              <strong>Principal UI &amp; Design Systems</strong>
+              <p>Apple Notes 3-column/2-column layout, 5 non-yellow studio themes, inline AI UX, and CSS architecture.</p>
+            </div>
+            <div class="agent-node">
+              <span class="agent-role-badge">security-worker</span>
+              <strong>Security &amp; Hardening Engineer</strong>
+              <p>Electron IPC isolation, CSP lockdown, <code>0o600</code> vault permissions, and XSS sanitization audits.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ Accordion Section -->
+    <section class="section faq-section" id="faq">
+      <div class="container faq-container">
+        <div class="section-header">
+          <span class="section-tag">Questions &amp; Answers</span>
+          <h2 class="section-title">Frequently Asked Questions</h2>
+        </div>
+
+        <div class="faq-list" id="faqAccordion">
+          <div class="faq-item">
+            <button type="button" class="faq-question" aria-expanded="true">
+              <span>Where are my notes stored? Are they ever uploaded to a cloud server?</span>
+              <span class="faq-chevron">▾</span>
+            </button>
+            <div class="faq-answer" style="max-height: 240px;">
+              <p>
+                100% of your notes, folders, tags, and snapshots are stored locally on your Mac inside your application data directory with <code>0o600</code> owner-only permissions. Note content is only sent directly to Google's Gemini API when you explicitly invoke an AI command.
+              </p>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button type="button" class="faq-question" aria-expanded="false">
+              <span>How do I configure my Google Gemini API Key?</span>
+              <span class="faq-chevron">▾</span>
+            </button>
+            <div class="faq-answer">
+              <p>
+                Open <strong>Settings (⌘,)</strong> inside Gemini Notes and paste your key from Google AI Studio, or define <code>GEMINI_API_KEY</code> in your environment. On macOS Desktop, your key is encrypted using Electron's native OS Keychain integration (<code>safeStorage</code>).
+              </p>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button type="button" class="faq-question" aria-expanded="false">
+              <span>Does Gemini Notes run natively on Apple Silicon (M1 / M2 / M3 / M4)?</span>
+              <span class="faq-chevron">▾</span>
+            </button>
+            <div class="faq-answer">
+              <p>
+                Yes. Gemini Notes ships as a Universal macOS build supporting both native Apple Silicon (<code>arm64</code>) and Intel (<code>x64</code>) architectures. You can inspect your active runtime architecture anytime in <strong>Settings → Runtime Architecture</strong> or the Diagnostic Logs modal.
+              </p>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button type="button" class="faq-question" aria-expanded="false">
+              <span>Can I switch between the 3-Column and 2-Column Apple Notes layouts?</span>
+              <span class="faq-chevron">▾</span>
+            </button>
+            <div class="faq-answer">
+              <p>
+                Absolutely. Use the layout toggle button directly in the editor topbar, press <kbd>⌘K</kbd> to open the Command Palette, or choose your preferred layout in Settings. You can also enter <strong>Focus Mode (⌘⇧F)</strong> for a pure single-pane writing canvas.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Download / Release Callout -->
+    <section class="section download-section" id="download">
+      <div class="container">
+        <div class="download-card">
+          <div class="download-content">
+            <span class="eyebrow-badge">Ready for macOS Sonoma, Sequoia &amp; Beyond</span>
+            <h2>Ready to Elevate Your Note-Taking?</h2>
+            <p>
+              Download the standalone macOS Universal bundle or build directly from source in seconds. Free, local-first, and open for inspection.
+            </p>
+
+            <div class="download-buttons">
+              <a href="../release/" class="btn btn-primary btn-lg">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                <div class="btn-label-stack">
+                  <span>Download Gemini Notes.dmg</span>
+                  <small>v2.4.0 • Universal macOS (arm64 + x64)</small>
+                </div>
+              </a>
+
+              <a href="../README.md" class="btn btn-secondary btn-lg">
+                <span>Read Documentation &amp; Build Guide</span>
+              </a>
+            </div>
+          </div>
+
+          <div class="download-terminal">
+            <div class="terminal-header">
+              <span class="term-dot"></span>
+              <span class="term-dot"></span>
+              <span class="term-dot"></span>
+              <span class="term-title">zsh — Quick Start from Source</span>
+            </div>
+            <pre class="terminal-code"><code><span class="c-comment"># Clone &amp; launch native macOS desktop app</span>
+git clone https://github.com/your-org/gemini-notes.git
+cd gemini-notes
+npm install
+npm run electron:dev
+
+<span class="c-comment"># Or build standalone macOS .app / .dmg</span>
+npm run electron:build</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container footer-container">
+      <div class="footer-brand">
+        <div class="brand-logo">
+          <span class="brand-icon">✦</span>
+          <span class="brand-text">Gemini Notes</span>
+        </div>
+        <p>Crafted with precision for macOS. Powered by Google Gemini 2.5.</p>
+      </div>
+
+      <div class="footer-links">
+        <a href="#demo">Live Demo</a>
+        <a href="#features">Features</a>
+        <a href="#themes">Themes</a>
+        <a href="#security">Security</a>
+        <a href="../README.md">README</a>
+      </div>
+
+      <div class="footer-tech-badges">
+        <span class="tech-badge">Electron 40</span>
+        <span class="tech-badge">React 19 + TypeScript</span>
+        <span class="tech-badge">@google/genai SDK</span>
+        <span class="tech-badge">Apple Silicon Universal</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="./app.js"></script>
+</body>
+</html>
