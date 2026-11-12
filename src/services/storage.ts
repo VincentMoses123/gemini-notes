@@ -155,6 +155,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   theme: 'dark',
   accentTheme: 'sapphire',
   layoutMode: 'three-column',
+  defaultExportFormat: 'pdf',
+  pdfPageSize: 'Letter',
+  pdfIncludeMetadata: true,
   storagePath: 'Local App Data',
   folders: DEFAULT_FOLDERS,
 };
@@ -194,8 +197,13 @@ function normalizeSettings(raw?: Partial<AppSettings> | null): AppSettings {
   return {
     ...DEFAULT_SETTINGS,
     ...raw,
+    theme: raw.theme || 'dark',
     accentTheme: raw.accentTheme || 'sapphire',
     layoutMode: raw.layoutMode || 'three-column',
+    defaultExportFormat: raw.defaultExportFormat || 'pdf',
+    pdfPageSize: raw.pdfPageSize || 'Letter',
+    pdfIncludeMetadata:
+      raw.pdfIncludeMetadata !== undefined ? raw.pdfIncludeMetadata : true,
     folders,
   };
 }

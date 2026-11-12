@@ -44,65 +44,175 @@
   --shadow-lg: 0 16px 36px -8px rgba(15, 23, 42, 0.14);
 }
 
-/* ==================== 5 PROFESSIONAL ACCENT PALETTES ==================== */
+[data-theme='midnight'] {
+  --bg-folders: #0a0c10;
+  --bg-notelist: #0f1218;
+  --bg-primary: #07090d;
+  --bg-secondary: #12161f;
+  --bg-tertiary: #1a202c;
+  --bg-elevated: #1f2633;
+  --border-color: rgba(148, 163, 184, 0.09);
+  --border-strong: rgba(148, 163, 184, 0.18);
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --accent: #0a84ff;
+  --accent-hover: #0070e0;
+  --accent-soft: rgba(10, 132, 255, 0.16);
+  --accent-gradient: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+  --danger: #f87171;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --shadow-lg: 0 20px 44px -10px rgba(0, 0, 0, 0.8);
+}
+
+[data-theme='sepia'] {
+  --bg-folders: #ede2c9;
+  --bg-notelist: #faf3e0;
+  --bg-primary: #f6edd7;
+  --bg-secondary: #efe4ca;
+  --bg-tertiary: #e6d8b9;
+  --bg-elevated: #fdf8eb;
+  --border-color: rgba(87, 63, 35, 0.12);
+  --border-strong: rgba(87, 63, 35, 0.22);
+  --text-primary: #2b2114;
+  --text-secondary: #68553d;
+  --text-muted: #988367;
+  --accent: #0066cc;
+  --accent-hover: #0055b3;
+  --accent-soft: rgba(0, 102, 204, 0.12);
+  --accent-gradient: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+  --danger: #c53030;
+  --success: #2f855a;
+  --warning: #b7791f;
+  --shadow-lg: 0 16px 36px -8px rgba(66, 48, 24, 0.18);
+}
+
+/* ==================== 9 PROFESSIONAL ACCENT PALETTES ==================== */
 [data-accent='sapphire'],
-[data-theme='dark'][data-accent='sapphire'] {
+[data-theme='dark'][data-accent='sapphire'],
+[data-theme='midnight'][data-accent='sapphire'] {
   --accent: #0a84ff;
   --accent-hover: #0070e0;
   --accent-soft: rgba(10, 132, 255, 0.14);
 }
-[data-theme='light'][data-accent='sapphire'] {
+[data-theme='light'][data-accent='sapphire'],
+[data-theme='sepia'][data-accent='sapphire'] {
   --accent: #0066cc;
   --accent-hover: #0055b3;
   --accent-soft: rgba(0, 102, 204, 0.12);
 }
 
 [data-accent='emerald'],
-[data-theme='dark'][data-accent='emerald'] {
+[data-theme='dark'][data-accent='emerald'],
+[data-theme='midnight'][data-accent='emerald'] {
   --accent: #10b981;
   --accent-hover: #059669;
   --accent-soft: rgba(16, 185, 129, 0.14);
 }
-[data-theme='light'][data-accent='emerald'] {
+[data-theme='light'][data-accent='emerald'],
+[data-theme='sepia'][data-accent='emerald'] {
   --accent: #059669;
   --accent-hover: #047857;
   --accent-soft: rgba(5, 150, 105, 0.12);
 }
 
 [data-accent='copper'],
-[data-theme='dark'][data-accent='copper'] {
+[data-theme='dark'][data-accent='copper'],
+[data-theme='midnight'][data-accent='copper'] {
   --accent: #f59e0b;
   --accent-hover: #d97706;
   --accent-soft: rgba(245, 158, 11, 0.14);
 }
-[data-theme='light'][data-accent='copper'] {
+[data-theme='light'][data-accent='copper'],
+[data-theme='sepia'][data-accent='copper'] {
   --accent: #d97706;
   --accent-hover: #b45309;
   --accent-soft: rgba(217, 119, 6, 0.12);
 }
 
 [data-accent='indigo'],
-[data-theme='dark'][data-accent='indigo'] {
+[data-theme='dark'][data-accent='indigo'],
+[data-theme='midnight'][data-accent='indigo'] {
   --accent: #6366f1;
   --accent-hover: #4f46e5;
   --accent-soft: rgba(99, 102, 241, 0.14);
 }
-[data-theme='light'][data-accent='indigo'] {
+[data-theme='light'][data-accent='indigo'],
+[data-theme='sepia'][data-accent='indigo'] {
   --accent: #4f46e5;
   --accent-hover: #4338ca;
   --accent-soft: rgba(79, 70, 229, 0.12);
 }
 
 [data-accent='slate'],
-[data-theme='dark'][data-accent='slate'] {
+[data-theme='dark'][data-accent='slate'],
+[data-theme='midnight'][data-accent='slate'] {
   --accent: #38bdf8;
   --accent-hover: #0284c7;
   --accent-soft: rgba(56, 189, 248, 0.14);
 }
-[data-theme='light'][data-accent='slate'] {
+[data-theme='light'][data-accent='slate'],
+[data-theme='sepia'][data-accent='slate'] {
   --accent: #0284c7;
   --accent-hover: #0369a1;
   --accent-soft: rgba(2, 132, 199, 0.12);
+}
+
+[data-accent='rose'],
+[data-theme='dark'][data-accent='rose'],
+[data-theme='midnight'][data-accent='rose'] {
+  --accent: #f43f5e;
+  --accent-hover: #e11d48;
+  --accent-soft: rgba(244, 63, 94, 0.14);
+}
+[data-theme='light'][data-accent='rose'],
+[data-theme='sepia'][data-accent='rose'] {
+  --accent: #e11d48;
+  --accent-hover: #be123c;
+  --accent-soft: rgba(225, 29, 72, 0.12);
+}
+
+[data-accent='violet'],
+[data-theme='dark'][data-accent='violet'],
+[data-theme='midnight'][data-accent='violet'] {
+  --accent: #a855f7;
+  --accent-hover: #9333ea;
+  --accent-soft: rgba(168, 85, 247, 0.14);
+}
+[data-theme='light'][data-accent='violet'],
+[data-theme='sepia'][data-accent='violet'] {
+  --accent: #9333ea;
+  --accent-hover: #7e22ce;
+  --accent-soft: rgba(147, 51, 234, 0.12);
+}
+
+[data-accent='coral'],
+[data-theme='dark'][data-accent='coral'],
+[data-theme='midnight'][data-accent='coral'] {
+  --accent: #fb7185;
+  --accent-hover: #f43f5e;
+  --accent-soft: rgba(251, 113, 133, 0.15);
+}
+[data-theme='light'][data-accent='coral'],
+[data-theme='sepia'][data-accent='coral'] {
+  --accent: #ea580c;
+  --accent-hover: #c2410c;
+  --accent-soft: rgba(234, 88, 12, 0.12);
+}
+
+[data-accent='teal'],
+[data-theme='dark'][data-accent='teal'],
+[data-theme='midnight'][data-accent='teal'] {
+  --accent: #14b8a6;
+  --accent-hover: #0d9488;
+  --accent-soft: rgba(20, 184, 166, 0.14);
+}
+[data-theme='light'][data-accent='teal'],
+[data-theme='sepia'][data-accent='teal'] {
+  --accent: #0d9488;
+  --accent-hover: #0f766e;
+  --accent-soft: rgba(13, 148, 136, 0.12);
 }
 
 /* ==================== RESET & BASE TYPOGRAPHY ==================== */
@@ -623,12 +733,13 @@ code {
 .swatch-dots {
   display: flex;
   align-items: center;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .theme-swatch-dot {
-  width: 13px;
-  height: 13px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
   border: 2px solid transparent;
   cursor: pointer;
@@ -1314,6 +1425,51 @@ code {
   font-size: 11.5px;
   font-weight: 500;
   cursor: pointer;
+}
+
+.pdf-export-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.checkbox-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-toggle-label input[type='checkbox'] {
+  accent-color: var(--accent);
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+.export-now-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 7px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.export-now-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .form-group { display: flex; flex-direction: column; gap: 6px; }

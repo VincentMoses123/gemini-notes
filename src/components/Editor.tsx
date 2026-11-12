@@ -41,6 +41,7 @@ import {
   Languages,
   Terminal,
   PanelLeft,
+  FileDown,
 } from 'lucide-react';
 import {
   AccentTheme,
@@ -75,6 +76,7 @@ interface EditorProps {
   onToggleFocusMode: () => void;
   onSelectAccent: (accent: AccentTheme) => void;
   onToggleLayoutMode: () => void;
+  onExportPdf?: () => void;
 }
 
 interface SlashCommandItem {
@@ -190,6 +192,7 @@ export const Editor: React.FC<EditorProps> = ({
   onToggleChat,
   onToggleFocusMode,
   onToggleLayoutMode,
+  onExportPdf,
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const lastLoadedNoteId = useRef<string | null>(null);
@@ -429,6 +432,18 @@ export const Editor: React.FC<EditorProps> = ({
       icon: <Icon size={15} />,
       run: () => execFormat(cmd, val),
     })),
+    ...(onExportPdf
+      ? [
+          {
+            id: 'export-pdf',
+            label: 'Export Note as PDF (/pdf)',
+            description: 'Save the current note as a formatted PDF document',
+            category: 'format' as const,
+            icon: <FileDown size={15} className="accent-icon" />,
+            run: onExportPdf,
+          },
+        ]
+      : []),
   ];
 
   const filteredSlashCommands = slashCommands.filter((item) => {
@@ -710,6 +725,16 @@ export const Editor: React.FC<EditorProps> = ({
           >
             <Download size={15} />
           </button>
+
+          {onExportPdf && (
+            <button
+              className="icon-btn"
+              onClick={onExportPdf}
+              title="Export Note as PDF (.pdf)  ⌘⇧E"
+            >
+              <FileDown size={15} />
+            </button>
+          )}
 
           <button
             className="icon-btn danger"

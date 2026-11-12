@@ -18,7 +18,7 @@ import {
   Columns,
   Hash,
 } from 'lucide-react';
-import { AccentTheme, LayoutMode, Note } from '../types';
+import { AccentTheme, LayoutMode, Note, ThemeMode } from '../types';
 import { formatShortNoteTime, getNoteDateBucket, stripHtmlToText } from '../services/storage';
 
 export type FilterView = 'all' | 'pinned' | 'trash';
@@ -33,6 +33,10 @@ export const ACCENT_SWATCHES: {
   { id: 'copper', label: 'Warm Copper', color: '#f59e0b' },
   { id: 'indigo', label: 'Royal Indigo', color: '#6366f1' },
   { id: 'slate', label: 'Graphite Slate', color: '#38bdf8' },
+  { id: 'rose', label: 'Rose Quartz', color: '#f43f5e' },
+  { id: 'violet', label: 'Electric Violet', color: '#a855f7' },
+  { id: 'coral', label: 'Sunset Coral', color: '#fb7185' },
+  { id: 'teal', label: 'Arctic Teal', color: '#14b8a6' },
 ];
 
 const CHRONO_BUCKETS = [
@@ -53,7 +57,7 @@ interface SidebarProps {
   searchQuery: string;
   hasApiKey: boolean;
   errorCount: number;
-  theme: 'dark' | 'light';
+  theme: ThemeMode;
   accentTheme: AccentTheme;
   layoutMode: LayoutMode;
   onSelectNote: (id: string) => void;
@@ -368,9 +372,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <button
           className="footer-theme-btn"
           onClick={onToggleTheme}
-          title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+          title={`Theme: ${theme.charAt(0).toUpperCase() + theme.slice(1)} (Click to cycle)`}
         >
-          {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+          {theme === 'light' || theme === 'sepia' ? <Sun size={14} /> : <Moon size={14} />}
         </button>
       </div>
     </div>

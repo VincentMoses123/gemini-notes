@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, shell, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 
 app.setName('Gemini Notes');
 
@@ -165,6 +166,12 @@ function buildSettingsPayload(saved = {}) {
     theme: data.theme || 'dark',
     accentTheme: data.accentTheme || 'sapphire',
     layoutMode: data.layoutMode || 'three-column',
+    defaultExportFormat: data.defaultExportFormat === 'markdown' ? 'markdown' : 'pdf',
+    pdfPageSize: ['Letter', 'A4', 'Legal'].includes(data.pdfPageSize)
+      ? data.pdfPageSize
+      : 'Letter',
+    pdfIncludeMetadata:
+      data.pdfIncludeMetadata !== undefined ? Boolean(data.pdfIncludeMetadata) : true,
     ...(data.folders !== undefined ? { folders: data.folders } : {}),
     storagePath: getStorageDir(),
     arch: process.arch,
@@ -365,6 +372,185 @@ app.whenReady().then(() => {
       return { ok: true, filePath: result.filePath };
     }
     return { ok: false };
+  });
+
+  ipcMain.handle('notes:exportPdf', async (_event, payload = {}) => {
+    const {
+      title = 'Untitled Note',
+      html = '',
+      pageSize = 'Letter',
+      includeMetadata = true,
+      folder = '',
+      tags = [],
+      updatedAt = '',
+      theme = 'light',
+    } = payload || {};
+
+    const safeName = (title || 'Untitled Note').replace(/[^a-z0-9\-_ ]/gi, '').trim() || 'note';
+    const result = await dialog.showSaveDialog({
+      title: 'Export Note as PDF',
+      defaultPath: `${safeName}.pdf`,
+      filters: [{ name: 'PDF Document', extensions: ['pdf'] }],
+    });
+    if (result.canceled || !result.filePath) {
+      return { ok: false, canceled: true };
+    }
+
+    const validPageSize = ['Letter', 'A4', 'Legal'].includes(pageSize) ? pageSize : 'Letter';
+    const escapeHtml = (value) =>
+      String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+    const sanitizePdfHtml = (rawHtml) =>
+      String(rawHtml ?? '')
+        .replace(/<\s*(script|iframe|object|embed|meta|link|base)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '')
+        .replace(/<\s*(script|iframe|object|embed|meta|link|base)\b[^>]*\/?>/gi, '')
+        .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+        .replace(/(href|src)\s*=\s*(['"])\s*javascript:[^'"]*\2/gi, '$1="#"');
+
+    const isSepia = theme === 'sepia';
+    const paperBg = isSepia ? '#fbf5e6' : '#ffffff';
+    const inkColor = isSepia ? '#2b2114' : '#111827';
+    const mutedInk = isSepia ? '#6f5c43' : '#6b7280';
+    const borderColor = isSepia ? '#e5d8bc' : '#e5e7eb';
+    const codeBg = isSepia ? '#f2e8cf' : '#f3f4f6';
+
+    const metaParts = [];
+    if (folder) metaParts.push(`Folder: ${escapeHtml(folder)}`);
+    if (Array.isArray(tags) && tags.length > 0) {
+      metaParts.push(`Tags: ${tags.map((t) => `#${escapeHtml(t)}`).join(', ')}`);
+    }
+    if (updatedAt) {
+      const parsedDate = new Date(updatedAt);
+      const formattedDate = Number.isNaN(parsedDate.getTime())
+        ? escapeHtml(updatedAt)
+        : escapeHtml(parsedDate.toLocaleString());
+      metaParts.push(`Updated: ${formattedDate}`);
+    }
+
+    const metadataBlock =
+      includeMetadata && metaParts.length > 0
+        ? `<div class="pdf-meta">${metaParts.join(' &nbsp;•&nbsp; ')}</div>`
+        : '';
+
+    const documentHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>${escapeHtml(title || 'Untitled Note')}</title>
+<style>
+  @page { margin: 0; }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: ${paperBg};
+    color: ${inkColor};
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif;
+    font-size: 11.5pt;
+    line-height: 1.65;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .pdf-container { padding: 14px 4px; }
+  h1.pdf-title {
+    font-size: 22pt;
+    font-weight: 700;
+    line-height: 1.25;
+    margin: 0 0 8px 0;
+    letter-spacing: -0.02em;
+  }
+  .pdf-meta {
+    font-size: 9pt;
+    color: ${mutedInk};
+    padding-bottom: 14px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid ${borderColor};
+  }
+  .pdf-body h1, .pdf-body h2, .pdf-body h3 {
+    margin-top: 1.25em;
+    margin-bottom: 0.45em;
+    line-height: 1.3;
+  }
+  .pdf-body h1 { font-size: 16pt; }
+  .pdf-body h2 { font-size: 13.5pt; }
+  .pdf-body h3 { font-size: 11.5pt; }
+  .pdf-body p { margin: 0 0 0.75em 0; }
+  .pdf-body ul, .pdf-body ol { margin: 0 0 0.85em 0; padding-left: 1.5em; }
+  .pdf-body blockquote {
+    margin: 0.9em 0;
+    padding: 6px 14px;
+    border-left: 3px solid ${mutedInk};
+    color: ${mutedInk};
+  }
+  .pdf-body pre, .pdf-body code {
+    font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 9.5pt;
+    background: ${codeBg};
+    border-radius: 5px;
+  }
+  .pdf-body code { padding: 1px 5px; }
+  .pdf-body pre { padding: 10px 12px; overflow-x: auto; white-space: pre-wrap; }
+  .pdf-body table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 10pt; }
+  .pdf-body th, .pdf-body td { border: 1px solid ${borderColor}; padding: 6px 8px; text-align: left; }
+  .pdf-body hr { border: none; border-top: 1px solid ${borderColor}; margin: 1.25em 0; }
+  .pdf-body img { max-width: 100%; height: auto; border-radius: 6px; }
+</style>
+</head>
+<body>
+  <div class="pdf-container">
+    <h1 class="pdf-title">${escapeHtml(title || 'Untitled Note')}</h1>
+    ${metadataBlock}
+    <div class="pdf-body">${sanitizePdfHtml(html)}</div>
+  </div>
+</body>
+</html>`;
+
+    const tmpHtmlPath = path.join(
+      os.tmpdir(),
+      `gemini-notes-pdf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.html`
+    );
+    let pdfWin = null;
+    try {
+      fs.writeFileSync(tmpHtmlPath, documentHtml, { encoding: 'utf-8', mode: 0o600 });
+      pdfWin = new BrowserWindow({
+        show: false,
+        width: 850,
+        height: 1100,
+        backgroundColor: paperBg,
+        webPreferences: {
+          contextIsolation: true,
+          nodeIntegration: false,
+          nodeIntegrationInWorker: false,
+          sandbox: true,
+          webSecurity: true,
+          allowRunningInsecureContent: false,
+        },
+      });
+      await pdfWin.loadFile(tmpHtmlPath);
+      const pdfBuffer = await pdfWin.webContents.printToPDF({
+        printBackground: true,
+        pageSize: validPageSize,
+        margins: { top: 0.5, bottom: 0.5, left: 0.5, right: 0.5 },
+      });
+      fs.writeFileSync(result.filePath, pdfBuffer);
+      return { ok: true, filePath: result.filePath };
+    } catch (err) {
+      return { ok: false, error: err && err.message ? err.message : 'PDF export failed' };
+    } finally {
+      if (pdfWin && !pdfWin.isDestroyed()) {
+        pdfWin.destroy();
+      }
+      try {
+        if (fs.existsSync(tmpHtmlPath)) fs.unlinkSync(tmpHtmlPath);
+      } catch {
+        // ignore temp cleanup failure
+      }
+    }
   });
 
   ipcMain.handle('gemini:generate', async (_event, { apiKey, model, systemInstruction, prompt }) => {

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { FilePlus, LayoutTemplate, Sparkles } from 'lucide-react';
-import { AccentTheme, AppSettings, LogEntry, Note } from './types';
+import { AccentTheme, AppSettings, LogEntry, Note, ThemeMode } from './types';
 import {
   DEFAULT_FOLDERS,
   DEFAULT_SETTINGS,
@@ -133,10 +133,59 @@ export const App: React.FC = () => {
     [filterView, selectedFolder]
   );
 
-  // Global keyboard shortcuts (Cmd+N, Cmd+K, Cmd+J, Cmd+L, Cmd+\, Cmd+,)
+  const handleExportNotePdf = useCallback(
+    async (overrideSettings?: Partial<AppSettings>) => {
+      const targetNote = notes.find((n) => n.id === activeNoteId) || null;
+      if (!targetNote) return;
+
+      const effectiveSettings = overrideSettings
+        ? { ...settings, ...overrideSettings }
+        : settings;
+
+      if (window.electronAPI?.exportPdf) {
+        const res = await window.electronAPI.exportPdf({
+          title: targetNote.title || 'Untitled Note',
+          html: targetNote.content,
+          pageSize: effectiveSettings.pdfPageSize || 'Letter',
+          includeMetadata:
+            effectiveSettings.pdfIncludeMetadata !== undefined
+              ? effectiveSettings.pdfIncludeMetadata
+              : true,
+          folder: targetNote.folder,
+          tags: targetNote.tags,
+          updatedAt: targetNote.updatedAt,
+          theme: effectiveSettings.theme,
+        });
+        if (res.ok) {
+          logEvent({
+            level: 'info',
+            source: 'system',
+            message: `Exported "${targetNote.title || 'Untitled Note'}" as PDF (${
+              effectiveSettings.pdfPageSize || 'Letter'
+            })`,
+          });
+        } else if (!res.canceled && res.error) {
+          logEvent({
+            level: 'error',
+            source: 'system',
+            code: 'GN-FS-001',
+            message: `PDF export failed: ${res.error}`,
+          });
+        }
+      } else {
+        window.print();
+      }
+    },
+    [notes, activeNoteId, settings]
+  );
+
+  // Global keyboard shortcuts (Cmd+N, Cmd+K, Cmd+J, Cmd+L, Cmd+\, Cmd+,, Cmd+Shift+E)
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'e') {
+        e.preventDefault();
+        handleExportNotePdf();
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
         e.preventDefault();
         handleCreateNote();
       } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -158,7 +207,7 @@ export const App: React.FC = () => {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [handleCreateNote]);
+  }, [handleCreateNote, handleExportNotePdf]);
 
   const handleUpdateActiveNote = useCallback(
     (updatedFields: Partial<Note>) => {
@@ -247,7 +296,9 @@ export const App: React.FC = () => {
   };
 
   const handleToggleTheme = () => {
-    const nextTheme = settings.theme === 'dark' ? 'light' : 'dark';
+    const order: ThemeMode[] = ['dark', 'midnight', 'light', 'sepia'];
+    const currentIndex = order.indexOf(settings.theme);
+    const nextTheme = order[(currentIndex + 1) % order.length];
     handleSaveSettings({ ...settings, theme: nextTheme });
   };
 
@@ -321,6 +372,7 @@ export const App: React.FC = () => {
           onToggleFocusMode={() => setFocusMode((prev) => !prev)}
           onSelectAccent={handleSelectAccent}
           onToggleLayoutMode={handleToggleLayoutMode}
+          onExportPdf={() => handleExportNotePdf()}
         />
       ) : (
         <div className="empty-editor-state">
@@ -390,12 +442,15 @@ export const App: React.FC = () => {
           onOpenSettings={() => setSettingsOpen(true)}
           onToggleFocusMode={() => setFocusMode((prev) => !prev)}
           onToggleTheme={handleToggleTheme}
+          onExportPdf={() => handleExportNotePdf()}
         />
       )}
 
       {settingsOpen && (
         <SettingsModal
           settings={settings}
+          activeNoteTitle={activeNote?.title}
+          onExportActiveNotePdf={(updated) => handleExportNotePdf(updated)}
           onSave={handleSaveSettings}
           onClose={() => setSettingsOpen(false)}
         />

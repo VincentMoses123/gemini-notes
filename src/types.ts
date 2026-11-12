@@ -21,15 +21,31 @@ export interface Note {
 
 export type GeminiModel =
   | 'gemini-3-flash-preview'
+  | 'gemini-3-pro-preview'
   | 'gemini-3.0-flash'
   | 'gemini-3.0-pro'
   | 'gemini-2.5-flash'
   | 'gemini-2.5-pro'
   | string;
 
-export type AccentTheme = 'sapphire' | 'emerald' | 'copper' | 'indigo' | 'slate';
+export type ThemeMode = 'dark' | 'midnight' | 'light' | 'sepia';
+
+export type AccentTheme =
+  | 'sapphire'
+  | 'emerald'
+  | 'copper'
+  | 'indigo'
+  | 'slate'
+  | 'rose'
+  | 'violet'
+  | 'coral'
+  | 'teal';
 
 export type LayoutMode = 'three-column' | 'two-column';
+
+export type PdfPageSize = 'Letter' | 'A4' | 'Legal';
+
+export type ExportFormat = 'pdf' | 'markdown';
 
 export interface SystemInfo {
   arch: string;
@@ -43,9 +59,12 @@ export interface SystemInfo {
 export interface AppSettings {
   apiKey: string;
   model: GeminiModel;
-  theme: 'dark' | 'light';
+  theme: ThemeMode;
   accentTheme?: AccentTheme;
   layoutMode?: LayoutMode;
+  defaultExportFormat?: ExportFormat;
+  pdfPageSize?: PdfPageSize;
+  pdfIncludeMetadata?: boolean;
   storagePath?: string;
   folders?: string[];
   arch?: string;
@@ -133,6 +152,16 @@ export interface ElectronAPI {
   clearLogs: () => Promise<{ ok: boolean }>;
   openStorageFolder: () => Promise<{ ok: boolean }>;
   exportMarkdown: (payload: { title: string; markdown: string }) => Promise<{ ok: boolean; filePath?: string }>;
+  exportPdf: (payload: {
+    title: string;
+    html: string;
+    pageSize?: PdfPageSize;
+    includeMetadata?: boolean;
+    folder?: string;
+    tags?: string[];
+    updatedAt?: string;
+    theme?: ThemeMode;
+  }) => Promise<{ ok: boolean; filePath?: string; canceled?: boolean; error?: string }>;
   generateWithGemini: (payload: {
     apiKey: string;
     model: string;

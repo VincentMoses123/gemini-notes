@@ -13,35 +13,52 @@ import {
   Columns,
   Sun,
   Moon,
+  BookOpen,
+  FileDown,
   Cpu,
 } from 'lucide-react';
 import {
   AccentTheme,
   AppSettings,
+  ExportFormat,
   GeminiModel,
   LayoutMode,
+  PdfPageSize,
   SystemInfo,
+  ThemeMode,
 } from '../types';
 import { runGeminiAction } from '../services/gemini';
 import { ACCENT_SWATCHES } from './Sidebar';
 
 interface SettingsModalProps {
   settings: AppSettings;
+  activeNoteTitle?: string;
+  onExportActiveNotePdf?: (overrideSettings?: AppSettings) => void;
   onSave: (newSettings: AppSettings) => void;
   onClose: () => void;
 }
 
 const MODEL_OPTIONS: { value: GeminiModel; label: string }[] = [
   { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash (Latest & Recommended)' },
+  { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro (Deep Reasoning & Synthesis)' },
   { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Auto-upgrades to latest Flash)' },
-  { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (Deep Reasoning & Complex Editing)' },
+  { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (Complex Editing)' },
   { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
 ];
 
-const THEME_OPTIONS: { id: 'dark' | 'light'; label: string; Icon: React.ElementType }[] = [
+const THEME_OPTIONS: { id: ThemeMode; label: string; Icon: React.ElementType }[] = [
   { id: 'dark', label: 'Dark', Icon: Moon },
+  { id: 'midnight', label: 'Midnight', Icon: Sparkles },
   { id: 'light', label: 'Light', Icon: Sun },
+  { id: 'sepia', label: 'Sepia', Icon: BookOpen },
 ];
+
+const EXPORT_FORMAT_OPTIONS: { id: ExportFormat; label: string }[] = [
+  { id: 'pdf', label: 'PDF (.pdf)' },
+  { id: 'markdown', label: 'Markdown (.md)' },
+];
+
+const PDF_PAGE_SIZE_OPTIONS: PdfPageSize[] = ['Letter', 'A4', 'Legal'];
 
 const LAYOUT_OPTIONS: { id: LayoutMode; label: string; Icon?: React.ElementType }[] = [
   { id: 'three-column', label: '3-Column (Apple Notes)', Icon: Columns },
@@ -58,14 +75,23 @@ export function formatArchLabel(arch?: string): string {
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   settings,
+  activeNoteTitle,
+  onExportActiveNotePdf,
   onSave,
   onClose,
 }) => {
   const [apiKey, setApiKey] = useState(settings.apiKey || '');
   const [model, setModel] = useState<GeminiModel>(settings.model || 'gemini-3-flash-preview');
-  const [theme, setTheme] = useState<'dark' | 'light'>(settings.theme || 'dark');
+  const [theme, setTheme] = useState<ThemeMode>(settings.theme || 'dark');
   const [accentTheme, setAccentTheme] = useState<AccentTheme>(settings.accentTheme || 'sapphire');
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(settings.layoutMode || 'three-column');
+  const [defaultExportFormat, setDefaultExportFormat] = useState<ExportFormat>(
+    settings.defaultExportFormat || 'pdf'
+  );
+  const [pdfPageSize, setPdfPageSize] = useState<PdfPageSize>(settings.pdfPageSize || 'Letter');
+  const [pdfIncludeMetadata, setPdfIncludeMetadata] = useState<boolean>(
+    settings.pdfIncludeMetadata !== undefined ? settings.pdfIncludeMetadata : true
+  );
   const [showKey, setShowKey] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -96,6 +122,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       theme,
       accentTheme,
       layoutMode,
+      defaultExportFormat,
+      pdfPageSize,
+      pdfIncludeMetadata,
     });
     onClose();
   };
@@ -261,6 +290,81 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <span>{testResult.message}</span>
               </div>
             )}
+          </div>
+
+          <div className="settings-section-card">
+            <div className="settings-section-title">
+              <FileDown size={14} className="accent-icon" />
+              <span>Note Export & PDF Settings</span>
+            </div>
+
+            <div className="pdf-export-settings-row">
+              <span className="form-hint">Quick Export Default</span>
+              <div className="segmented-toggle-group">
+                {EXPORT_FORMAT_OPTIONS.map(({ id, label }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className={`segmented-option ${defaultExportFormat === id ? 'active' : ''}`}
+                    onClick={() => setDefaultExportFormat(id)}
+                  >
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="pdf-export-settings-row">
+              <span className="form-hint">PDF Page Size</span>
+              <div className="segmented-toggle-group">
+                {PDF_PAGE_SIZE_OPTIONS.map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    className={`segmented-option ${pdfPageSize === size ? 'active' : ''}`}
+                    onClick={() => setPdfPageSize(size)}
+                  >
+                    <span>{size}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="pdf-export-settings-row">
+              <label className="checkbox-toggle-label">
+                <input
+                  type="checkbox"
+                  checked={pdfIncludeMetadata}
+                  onChange={(e) => setPdfIncludeMetadata(e.target.checked)}
+                />
+                <span>Include folder, tags & timestamp header in PDFs</span>
+              </label>
+
+              {onExportActiveNotePdf && (
+                <button
+                  type="button"
+                  className="export-now-btn"
+                  onClick={() => {
+                    const updated: AppSettings = {
+                      ...settings,
+                      apiKey: apiKey.trim(),
+                      model,
+                      theme,
+                      accentTheme,
+                      layoutMode,
+                      defaultExportFormat,
+                      pdfPageSize,
+                      pdfIncludeMetadata,
+                    };
+                    onSave(updated);
+                    onExportActiveNotePdf(updated);
+                  }}
+                >
+                  <FileDown size={14} />
+                  <span>Export &ldquo;{activeNoteTitle || 'Active Note'}&rdquo; as PDF</span>
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="form-group storage-info-box">

@@ -13,5 +13,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   clearLogs: () => ipcRenderer.invoke('logs:clear'),
   openStorageFolder: () => ipcRenderer.invoke('storage:openFolder'),
   exportMarkdown: (payload) => ipcRenderer.invoke('notes:exportMarkdown', payload),
+  exportPdf: (payload) => ipcRenderer.invoke('notes:exportPdf', payload),
   generateWithGemini: (payload) => ipcRenderer.invoke('gemini:generate', payload),
 });

@@ -9,6 +9,7 @@ import {
   Settings,
   Maximize2,
   Sun,
+  FileDown,
 } from 'lucide-react';
 import { Note } from '../types';
 
@@ -23,6 +24,7 @@ interface CommandPaletteProps {
   onOpenSettings: () => void;
   onToggleFocusMode: () => void;
   onToggleTheme: () => void;
+  onExportPdf?: () => void;
 }
 
 export const CommandPalette: React.FC<CommandPaletteProps> = ({
@@ -36,6 +38,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   onOpenSettings,
   onToggleFocusMode,
   onToggleTheme,
+  onExportPdf,
 }) => {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -80,11 +83,22 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     },
     {
       id: 'act-theme',
-      label: 'Switch Dark / Light Theme',
+      label: 'Cycle Surface Theme (Dark / Midnight / Light / Sepia)',
       hint: 'Theme',
       icon: <Sun size={15} />,
       run: onToggleTheme,
     },
+    ...(onExportPdf
+      ? [
+          {
+            id: 'act-export-pdf',
+            label: 'Export Active Note as PDF (.pdf)',
+            hint: '⌘⇧E',
+            icon: <FileDown size={15} />,
+            run: onExportPdf,
+          },
+        ]
+      : []),
     {
       id: 'act-settings',
       label: 'Open Gemini API & App Settings',
