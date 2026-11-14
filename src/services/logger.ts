@@ -7,7 +7,9 @@ const REDACTION_PATTERNS: Array<[RegExp, string]> = [
   [/AIza[0-9A-Za-z-_]{30,45}/g, 'AIzaSy***REDACTED***'],
   [/([?&]key=)[^&\s"']+/gi, '$1***REDACTED***'],
   [/(Bearer\s+)[A-Za-z0-9_\-\.]{10,}/gi, '$1***REDACTED***'],
+  [/(ya29\.[0-9A-Za-z_\-\.]{10,})/g, 'ya29.***REDACTED***'],
   [/(api[_-]?key["']?\s*[:=]\s*["']?)[^"',\s}{]+/gi, '$1***REDACTED***'],
+  [/(x-goog-api-key["']?\s*[:=]\s*["']?)[^"',\s}{]+/gi, '$1***REDACTED***'],
 ];
 
 /**
@@ -145,6 +147,14 @@ function updateMemoryLogs(next: LogEntry[], persistLocal = false) {
   memoryLogs = next.slice(0, MAX_LOGS);
   const snapshot = [...memoryLogs];
   listeners.forEach((cb) => cb(snapshot));
+  if (window.electronAPI) {
+    try {
+      localStorage.removeItem(LOGS_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+    return;
+  }
   if (persistLocal) {
     try {
       localStorage.setItem(LOGS_STORAGE_KEY, JSON.stringify(memoryLogs));
@@ -156,6 +166,11 @@ function updateMemoryLogs(next: LogEntry[], persistLocal = false) {
 
 export async function initLogger(): Promise<LogEntry[]> {
   if (window.electronAPI?.loadLogs) {
+    try {
+      localStorage.removeItem(LOGS_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
     try {
       const diskLogs = await window.electronAPI.loadLogs();
       if (Array.isArray(diskLogs)) {

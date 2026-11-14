@@ -498,6 +498,16 @@ export const Editor: React.FC<EditorProps> = ({
     }
   };
 
+  const handleEditorPaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    const html = e.clipboardData.getData('text/html');
+    if (html) {
+      e.preventDefault();
+      const clean = sanitizeHtml(html);
+      document.execCommand('insertHTML', false, clean);
+      handleEditorInput();
+    }
+  };
+
   const handleEditorInput = () => {
     syncEditorContent();
     const sel = window.getSelection();
@@ -1061,6 +1071,7 @@ export const Editor: React.FC<EditorProps> = ({
             contentEditable
             suppressContentEditableWarning
             onInput={handleEditorInput}
+            onPaste={handleEditorPaste}
             onKeyDown={handleEditorKeyDown}
             onMouseUp={handleMouseUpOrKeyUp}
             onKeyUp={handleMouseUpOrKeyUp}

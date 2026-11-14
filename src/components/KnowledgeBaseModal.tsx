@@ -92,6 +92,10 @@ export const KnowledgeBaseModal: React.FC<KnowledgeBaseModalProps> = ({
     const imported: KnowledgeDocument[] = [];
 
     for (const file of files) {
+      if (file.size > 25 * 1024 * 1024) {
+        setStatusError(`Skipped "${file.name}": exceeds the 25 MB file size limit.`);
+        continue;
+      }
       const extType = inferBrowserDocType(file.name);
       if (extType === 'pdf') {
         setStatusError('PDF text extraction requires the desktop app; import .md, .txt, or .csv here.');

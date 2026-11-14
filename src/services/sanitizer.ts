@@ -35,16 +35,13 @@ function isSafeUrl(urlStr: string): boolean {
 function isSafeImageUrl(srcStr: string): boolean {
   if (!srcStr) return false;
   const trimmed = srcStr.trim().toLowerCase();
-  if (
+  return (
     trimmed.startsWith('data:image/png;base64,') ||
     trimmed.startsWith('data:image/jpeg;base64,') ||
     trimmed.startsWith('data:image/jpg;base64,') ||
     trimmed.startsWith('data:image/gif;base64,') ||
     trimmed.startsWith('data:image/webp;base64,')
-  ) {
-    return true;
-  }
-  return isSafeUrl(srcStr);
+  );
 }
 
 /**
@@ -149,7 +146,11 @@ export function sanitizeHtml(dirtyHtml: string): string {
         }
       } else if (lowerName === 'style') {
         const styleVal = element.getAttribute(name) || '';
-        if (/javascript:|expression|behavior|url\(/i.test(styleVal)) {
+        if (
+          /javascript:|expression|behavior|url\(|image-set\(|position\s*:\s*(fixed|absolute)/i.test(
+            styleVal
+          )
+        ) {
           element.removeAttribute(name);
         }
       } else if (lowerName !== 'class' && lowerName !== 'id') {

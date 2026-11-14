@@ -234,6 +234,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 type={showKey ? 'text' : 'password'}
                 placeholder="AIzaSy..."
                 value={apiKey}
+                autoComplete="off"
+                spellCheck={false}
+                autoCapitalize="off"
                 onChange={(e) => setApiKey(e.target.value)}
               />
               <button

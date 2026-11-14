@@ -14,7 +14,9 @@ const REDACTION_PATTERNS = [
   [/AIza[0-9A-Za-z-_]{30,45}/g, 'AIzaSy***REDACTED***'],
   [/([?&]key=)[^&\s"']+/gi, '$1***REDACTED***'],
   [/(Bearer\s+)[A-Za-z0-9_\-\.]{10,}/gi, '$1***REDACTED***'],
+  [/(ya29\.[0-9A-Za-z_\-\.]{10,})/g, 'ya29.***REDACTED***'],
   [/(api[_-]?key["']?\s*[:=]\s*["']?)[^"',\s}{]+/gi, '$1***REDACTED***'],
+  [/(x-goog-api-key["']?\s*[:=]\s*["']?)[^"',\s}{]+/gi, '$1***REDACTED***'],
 ];
 
 /**
@@ -31,10 +33,20 @@ function redactSensitiveData(str) {
  */
 function sanitizeLogEntry(entry) {
   if (!entry || typeof entry !== 'object') return entry;
+  let details = entry.details;
+  if (typeof details === 'string') {
+    details = redactSensitiveData(details);
+  } else if (details !== undefined) {
+    try {
+      details = redactSensitiveData(JSON.stringify(details).slice(0, 2000));
+    } catch {
+      details = '[Unserializable details]';
+    }
+  }
   return {
     ...entry,
     message: redactSensitiveData(entry.message),
-    details: typeof entry.details === 'string' ? redactSensitiveData(entry.details) : entry.details,
+    details,
   };
 }
 
@@ -55,8 +67,19 @@ function safeOpenExternal(rawUrl) {
   } catch {
     // Malformed URL
   }
-  console.warn(`[Security] Blocked external navigation to untrusted protocol/URL: ${rawUrl}`);
+  console.warn(
+    `[Security] Blocked external navigation to untrusted protocol/URL: ${redactSensitiveData(String(rawUrl))}`
+  );
   return false;
+}
+
+function isDevEnvironment() {
+  return (
+    !app.isPackaged &&
+    !process.argv.includes('--use-dist') &&
+    process.env.USE_DIST !== 'true' &&
+    process.env.NODE_ENV !== 'production'
+  );
 }
 
 /**
@@ -65,7 +88,7 @@ function safeOpenExternal(rawUrl) {
 function isAllowedLocalNavigation(targetUrl, indexHtmlPath) {
   try {
     const parsed = new URL(targetUrl);
-    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+    if (isDevEnvironment() && (parsed.protocol === 'http:' || parsed.protocol === 'https:')) {
       return (
         (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') &&
         parsed.port === '5173'
@@ -82,10 +105,27 @@ function isAllowedLocalNavigation(targetUrl, indexHtmlPath) {
   }
 }
 
+function isTrustedIpcSender(event) {
+  const indexHtml = path.join(__dirname, '../dist/index.html');
+  const senderUrl = event?.senderFrame?.url || event?.sender?.getURL?.() || '';
+  return isAllowedLocalNavigation(senderUrl, indexHtml);
+}
+
+function assertTrustedIpcSender(event) {
+  if (!isTrustedIpcSender(event)) {
+    throw new Error('Unauthorized IPC sender');
+  }
+}
+
 function getStorageDir() {
   const dir = path.join(app.getPath('appData'), 'gemini-notes', 'notes-data');
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  }
+  try {
+    fs.chmodSync(dir, 0o700);
+  } catch {
+    // ignore chmod error on unsupported filesystems
   }
   return dir;
 }
@@ -171,8 +211,18 @@ function mapKnowledgeExtType(ext) {
   return 'doc';
 }
 
+function getSafeChildEnv() {
+  return {
+    PATH: '/usr/bin:/bin:/usr/sbin:/sbin',
+    HOME: os.homedir(),
+    TMPDIR: os.tmpdir(),
+    LANG: process.env.LANG || 'en_US.UTF-8',
+  };
+}
+
 function extractTextFromFile(filePath, ext) {
   const cleanExt = ext.toLowerCase().replace(/^\./, '');
+  const safeChildEnv = getSafeChildEnv();
   if (cleanExt === 'pdf') {
     if (process.platform === 'darwin') {
       try {
@@ -182,7 +232,7 @@ function extractTextFromFile(filePath, ext) {
           encoding: 'utf-8',
           timeout: 15000,
           maxBuffer: 20 * 1024 * 1024,
-          env: { ...process.env, KB_TARGET_FILE: filePath },
+          env: { ...safeChildEnv, KB_TARGET_FILE: filePath },
         });
         const cleanOut = normalizeExtractedText(out);
         if (cleanOut) return cleanOut;
@@ -201,6 +251,7 @@ function extractTextFromFile(filePath, ext) {
         encoding: 'utf-8',
         timeout: 10000,
         maxBuffer: 20 * 1024 * 1024,
+        env: safeChildEnv,
       });
       return normalizeExtractedText(out);
     } catch {
@@ -248,6 +299,11 @@ function writeJsonAtomic(filePath, data) {
     }
     fs.writeFileSync(filePath, payload, { encoding: 'utf-8', mode: 0o600 });
   }
+  try {
+    fs.chmodSync(filePath, 0o600);
+  } catch {
+    // ignore chmod error on unsupported filesystems
+  }
 }
 
 function saveJsonWithResult(filePath, data, includePath = false) {
@@ -277,6 +333,43 @@ function prependLogEntry(entry, dedupeStartupPrefix = false) {
     : list;
   const updated = [sanitizeLogEntry(entry), ...filtered].slice(0, MAX_LOG_ENTRIES);
   writeJsonAtomic(filePath, updated);
+}
+
+function sanitizeSettingsForSave(raw = {}) {
+  const data = raw && typeof raw === 'object' ? raw : {};
+  const VALID_THEMES = new Set(['dark', 'midnight', 'light', 'sepia']);
+  const VALID_ACCENTS = new Set([
+    'sapphire',
+    'emerald',
+    'copper',
+    'indigo',
+    'slate',
+    'rose',
+    'violet',
+    'coral',
+    'teal',
+  ]);
+  const VALID_LAYOUTS = new Set(['three-column', 'two-column']);
+  const VALID_PAGE_SIZES = new Set(['Letter', 'A4', 'Legal']);
+  return {
+    apiKey: typeof data.apiKey === 'string' ? data.apiKey.trim().slice(0, 256) : '',
+    model: typeof data.model === 'string' ? data.model.trim().slice(0, 120) : DEFAULT_MODEL,
+    theme: VALID_THEMES.has(data.theme) ? data.theme : 'dark',
+    accentTheme: VALID_ACCENTS.has(data.accentTheme) ? data.accentTheme : 'sapphire',
+    layoutMode: VALID_LAYOUTS.has(data.layoutMode) ? data.layoutMode : 'three-column',
+    defaultExportFormat: data.defaultExportFormat === 'markdown' ? 'markdown' : 'pdf',
+    pdfPageSize: VALID_PAGE_SIZES.has(data.pdfPageSize) ? data.pdfPageSize : 'Letter',
+    pdfIncludeMetadata:
+      data.pdfIncludeMetadata !== undefined ? Boolean(data.pdfIncludeMetadata) : true,
+    ...(Array.isArray(data.folders)
+      ? {
+          folders: data.folders
+            .filter((f) => typeof f === 'string' && f.trim())
+            .slice(0, 50)
+            .map((f) => f.trim().slice(0, 80)),
+        }
+      : {}),
+  };
 }
 
 function buildSettingsPayload(saved = {}) {
@@ -408,14 +501,11 @@ function recordStartupDiagnostics() {
 
 app.whenReady().then(() => {
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-    const isDev =
-      !app.isPackaged &&
-      !process.argv.includes('--use-dist') &&
-      process.env.USE_DIST !== 'true';
+    const isDev = isDevEnvironment();
 
     const csp = isDev
-      ? "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:5173; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http://localhost:5173 ws://localhost:5173 https://generativelanguage.googleapis.com; object-src 'none'; base-uri 'self';"
-      : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://generativelanguage.googleapis.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';";
+      ? "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:5173; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' http://localhost:5173 ws://localhost:5173 https://generativelanguage.googleapis.com; object-src 'none'; base-uri 'self';"
+      : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://generativelanguage.googleapis.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';";
 
     callback({
       responseHeaders: {
@@ -444,35 +534,50 @@ app.whenReady().then(() => {
 
   recordStartupDiagnostics();
 
-  ipcMain.handle('system:info', async () => ({
-    arch: process.arch,
-    platform: process.platform,
-    electronVersion: process.versions.electron,
-    nodeVersion: process.versions.node,
-    chromeVersion: process.versions.chrome,
-    isAppleSilicon: process.platform === 'darwin' && process.arch === 'arm64',
-  }));
+  ipcMain.handle('system:info', async (event) => {
+    assertTrustedIpcSender(event);
+    return {
+      arch: process.arch,
+      platform: process.platform,
+      electronVersion: process.versions.electron,
+      nodeVersion: process.versions.node,
+      chromeVersion: process.versions.chrome,
+      isAppleSilicon: process.platform === 'darwin' && process.arch === 'arm64',
+    };
+  });
 
-  ipcMain.handle('notes:load', async () => readJsonFile(getNotesFilePath(), null));
-  ipcMain.handle('notes:save', async (_event, notes) =>
-    saveJsonWithResult(getNotesFilePath(), notes, true)
-  );
+  ipcMain.handle('notes:load', async (event) => {
+    assertTrustedIpcSender(event);
+    return readJsonFile(getNotesFilePath(), null);
+  });
+  ipcMain.handle('notes:save', async (event, notes) => {
+    assertTrustedIpcSender(event);
+    if (!Array.isArray(notes)) {
+      return { ok: false, error: 'Invalid notes payload.' };
+    }
+    return saveJsonWithResult(getNotesFilePath(), notes, true);
+  });
 
-  ipcMain.handle('settings:load', async () =>
-    buildSettingsPayload(readJsonFile(getSettingsFilePath(), {}))
-  );
-  ipcMain.handle('settings:save', async (_event, settings) =>
-    saveJsonWithResult(getSettingsFilePath(), settings)
-  );
+  ipcMain.handle('settings:load', async (event) => {
+    assertTrustedIpcSender(event);
+    return buildSettingsPayload(readJsonFile(getSettingsFilePath(), {}));
+  });
+  ipcMain.handle('settings:save', async (event, settings) => {
+    assertTrustedIpcSender(event);
+    return saveJsonWithResult(getSettingsFilePath(), sanitizeSettingsForSave(settings));
+  });
 
-  ipcMain.handle('kb:load', async () => {
+  ipcMain.handle('kb:load', async (event) => {
+    assertTrustedIpcSender(event);
     const docs = readJsonFile(getKnowledgeBaseFilePath(), []);
     return sanitizeKnowledgeDocs(docs);
   });
-  ipcMain.handle('kb:save', async (_event, docs) =>
-    saveJsonWithResult(getKnowledgeBaseFilePath(), sanitizeKnowledgeDocs(docs))
-  );
-  ipcMain.handle('kb:importFiles', async () => {
+  ipcMain.handle('kb:save', async (event, docs) => {
+    assertTrustedIpcSender(event);
+    return saveJsonWithResult(getKnowledgeBaseFilePath(), sanitizeKnowledgeDocs(docs));
+  });
+  ipcMain.handle('kb:importFiles', async (event) => {
+    assertTrustedIpcSender(event);
     try {
       const result = await dialog.showOpenDialog({
         title: 'Import Reference Documents to Knowledge Base',
@@ -531,11 +636,13 @@ app.whenReady().then(() => {
     }
   });
 
-  ipcMain.handle('logs:load', async () => {
+  ipcMain.handle('logs:load', async (event) => {
+    assertTrustedIpcSender(event);
     const logs = readJsonFile(getLogsFilePath(), []);
     return Array.isArray(logs) ? logs : [];
   });
-  ipcMain.handle('logs:append', async (_event, entry) => {
+  ipcMain.handle('logs:append', async (event, entry) => {
+    assertTrustedIpcSender(event);
     try {
       prependLogEntry(entry);
       return { ok: true };
@@ -543,28 +650,41 @@ app.whenReady().then(() => {
       return { ok: false, error: err.message };
     }
   });
-  ipcMain.handle('logs:clear', async () => saveJsonWithResult(getLogsFilePath(), []));
+  ipcMain.handle('logs:clear', async (event) => {
+    assertTrustedIpcSender(event);
+    return saveJsonWithResult(getLogsFilePath(), []);
+  });
 
-  ipcMain.handle('storage:openFolder', async () => {
+  ipcMain.handle('storage:openFolder', async (event) => {
+    assertTrustedIpcSender(event);
     shell.openPath(getStorageDir());
     return { ok: true };
   });
 
-  ipcMain.handle('notes:exportMarkdown', async (_event, { title, markdown }) => {
-    const safeName = (title || 'Untitled Note').replace(/[^a-z0-9\-_ ]/gi, '').trim() || 'note';
+  ipcMain.handle('notes:exportMarkdown', async (event, payload = {}) => {
+    assertTrustedIpcSender(event);
+    const { title = 'Untitled Note', markdown = '' } =
+      payload && typeof payload === 'object' ? payload : {};
+    const safeName = (String(title || 'Untitled Note')).replace(/[^a-z0-9\-_ ]/gi, '').trim() || 'note';
     const result = await dialog.showSaveDialog({
       title: 'Export Note as Markdown',
       defaultPath: `${safeName}.md`,
       filters: [{ name: 'Markdown', extensions: ['md'] }],
     });
     if (!result.canceled && result.filePath) {
-      fs.writeFileSync(result.filePath, markdown, 'utf-8');
+      fs.writeFileSync(result.filePath, String(markdown ?? ''), { encoding: 'utf-8', mode: 0o600 });
+      try {
+        fs.chmodSync(result.filePath, 0o600);
+      } catch {
+        // ignore chmod error on unsupported filesystems
+      }
       return { ok: true, filePath: result.filePath };
     }
     return { ok: false };
   });
 
-  ipcMain.handle('notes:exportPdf', async (_event, payload = {}) => {
+  ipcMain.handle('notes:exportPdf', async (event, payload = {}) => {
+    assertTrustedIpcSender(event);
     const {
       title = 'Untitled Note',
       html = '',
@@ -574,7 +694,7 @@ app.whenReady().then(() => {
       tags = [],
       updatedAt = '',
       theme = 'light',
-    } = payload || {};
+    } = payload && typeof payload === 'object' ? payload : {};
 
     const safeName = (title || 'Untitled Note').replace(/[^a-z0-9\-_ ]/gi, '').trim() || 'note';
     const result = await dialog.showSaveDialog({
@@ -598,11 +718,11 @@ app.whenReady().then(() => {
     const sanitizePdfHtml = (rawHtml) =>
       String(rawHtml ?? '')
         .replace(
-          /<\s*(script|style|iframe|object|embed|meta|link|base|form|input|button|textarea|select)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi,
+          /<\s*(script|style|iframe|object|embed|meta|link|base|form|input|button|textarea|select|svg|math)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi,
           ''
         )
         .replace(
-          /<\s*(script|style|iframe|object|embed|meta|link|base|form|input|button|textarea|select)\b[^>]*\/?>/gi,
+          /<\s*(script|style|iframe|object|embed|meta|link|base|form|input|button|textarea|select|svg|math)\b[^>]*\/?>/gi,
           ''
         )
         .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
@@ -707,12 +827,15 @@ app.whenReady().then(() => {
 </body>
 </html>`;
 
-    const tmpHtmlPath = path.join(
-      os.tmpdir(),
-      `gemini-notes-pdf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.html`
-    );
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gn-pdf-'));
+    const tmpHtmlPath = path.join(tmpDir, 'export.html');
     let pdfWin = null;
     try {
+      try {
+        fs.chmodSync(tmpDir, 0o700);
+      } catch {
+        // ignore chmod error on unsupported filesystems
+      }
       fs.writeFileSync(tmpHtmlPath, documentHtml, { encoding: 'utf-8', mode: 0o600 });
       pdfWin = new BrowserWindow({
         show: false,
@@ -736,7 +859,12 @@ app.whenReady().then(() => {
         pageSize: validPageSize,
         margins: { top: 0.5, bottom: 0.5, left: 0.5, right: 0.5 },
       });
-      fs.writeFileSync(result.filePath, pdfBuffer);
+      fs.writeFileSync(result.filePath, pdfBuffer, { mode: 0o600 });
+      try {
+        fs.chmodSync(result.filePath, 0o600);
+      } catch {
+        // ignore chmod error on unsupported filesystems
+      }
       return { ok: true, filePath: result.filePath };
     } catch (err) {
       return { ok: false, error: err && err.message ? err.message : 'PDF export failed' };
@@ -745,14 +873,17 @@ app.whenReady().then(() => {
         pdfWin.destroy();
       }
       try {
-        if (fs.existsSync(tmpHtmlPath)) fs.unlinkSync(tmpHtmlPath);
+        fs.rmSync(tmpDir, { recursive: true, force: true });
       } catch {
         // ignore temp cleanup failure
       }
     }
   });
 
-  ipcMain.handle('gemini:generate', async (_event, { apiKey, model, systemInstruction, prompt }) => {
+  ipcMain.handle('gemini:generate', async (event, payload = {}) => {
+    assertTrustedIpcSender(event);
+    const { apiKey, model, systemInstruction, prompt } =
+      payload && typeof payload === 'object' ? payload : {};
     const startTime = Date.now();
     const resolvedKey = (apiKey || process.env.GEMINI_API_KEY || '').trim();
     if (!resolvedKey) {
@@ -767,11 +898,20 @@ app.whenReady().then(() => {
     const extractSuggestedModels = (msg = '') =>
       Array.from(msg.matchAll(/models\/([a-zA-Z0-9._-]+)/g), (m) => m[1]);
 
+    const parseJsonSafe = async (response) => {
+      const rawText = await response.text();
+      try {
+        return rawText ? JSON.parse(rawText) : {};
+      } catch {
+        return { error: { message: rawText.slice(0, 300) || `HTTP ${response.status}` } };
+      }
+    };
+
     const callModel = async (targetModel) => {
       const cleanModel = targetModel.replace(/^models\//, '');
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
         cleanModel
-      )}:generateContent?key=${encodeURIComponent(resolvedKey)}`;
+      )}:generateContent`;
 
       const body = {
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -781,20 +921,25 @@ app.whenReady().then(() => {
 
       const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': resolvedKey,
+        },
         body: JSON.stringify(body),
       });
-      const data = await response.json();
+      const data = await parseJsonSafe(response);
       return { response, data, usedModel: cleanModel };
     };
 
     const fetchAvailableModels = async () => {
       try {
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(resolvedKey)}`
-        );
+        const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models', {
+          headers: {
+            'x-goog-api-key': resolvedKey,
+          },
+        });
         if (!res.ok) return [];
-        const data = await res.json();
+        const data = await parseJsonSafe(res);
         return (data.models || [])
           .filter(
             (m) =>

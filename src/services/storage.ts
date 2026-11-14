@@ -224,8 +224,17 @@ export function prependNoteSnapshot(
   return [snapshot, ...(note.snapshots || [])].slice(0, maxSnapshots);
 }
 
+function clearLocalKey(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // ignore storage access errors
+  }
+}
+
 export async function loadNotesFromStorage(): Promise<Note[]> {
   if (window.electronAPI) {
+    clearLocalKey(NOTES_STORAGE_KEY);
     const notes = await window.electronAPI.loadNotes();
     if (Array.isArray(notes) && notes.length > 0) {
       return normalizeNotes(notes);
@@ -246,12 +255,15 @@ export async function loadNotesFromStorage(): Promise<Note[]> {
 export async function saveNotesToStorage(notes: Note[]): Promise<void> {
   if (window.electronAPI) {
     await window.electronAPI.saveNotes(notes);
+    clearLocalKey(NOTES_STORAGE_KEY);
+    return;
   }
   writeLocalJson(NOTES_STORAGE_KEY, notes);
 }
 
 export async function loadSettingsFromStorage(): Promise<AppSettings> {
   if (window.electronAPI) {
+    clearLocalKey(SETTINGS_STORAGE_KEY);
     return normalizeSettings(await window.electronAPI.loadSettings());
   }
   return normalizeSettings(readLocalJson<Partial<AppSettings>>(SETTINGS_STORAGE_KEY));
@@ -260,12 +272,15 @@ export async function loadSettingsFromStorage(): Promise<AppSettings> {
 export async function saveSettingsToStorage(settings: AppSettings): Promise<void> {
   if (window.electronAPI) {
     await window.electronAPI.saveSettings(settings);
+    clearLocalKey(SETTINGS_STORAGE_KEY);
+    return;
   }
   writeLocalJson(SETTINGS_STORAGE_KEY, settings);
 }
 
 export async function loadKnowledgeDocsFromStorage(): Promise<KnowledgeDocument[]> {
   if (window.electronAPI?.loadKnowledgeDocs) {
+    clearLocalKey(KNOWLEDGE_STORAGE_KEY);
     const docs = await window.electronAPI.loadKnowledgeDocs();
     if (Array.isArray(docs)) return docs;
   }
@@ -276,6 +291,8 @@ export async function loadKnowledgeDocsFromStorage(): Promise<KnowledgeDocument[
 export async function saveKnowledgeDocsToStorage(docs: KnowledgeDocument[]): Promise<void> {
   if (window.electronAPI?.saveKnowledgeDocs) {
     await window.electronAPI.saveKnowledgeDocs(docs);
+    clearLocalKey(KNOWLEDGE_STORAGE_KEY);
+    return;
   }
   writeLocalJson(KNOWLEDGE_STORAGE_KEY, docs);
 }

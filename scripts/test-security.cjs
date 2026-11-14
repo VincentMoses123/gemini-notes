@@ -14,6 +14,7 @@ console.log('Test 1: Content Security Policy (CSP)');
 const indexHtml = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf-8');
 assert(indexHtml.includes('http-equiv="Content-Security-Policy"'), 'index.html must contain a CSP meta tag');
 assert(indexHtml.includes("default-src 'self'"), "index.html CSP must contain default-src 'self'");
+assert(indexHtml.includes("img-src 'self' data: blob:"), "index.html CSP must restrict img-src to 'self' data: blob:");
 assert(indexHtml.includes("object-src 'none'"), "index.html CSP must contain object-src 'none'");
 console.log('✓ index.html (Development CSP) is properly configured.');
 
@@ -21,6 +22,7 @@ const distIndexHtml = fs.readFileSync(path.join(__dirname, '../dist/index.html')
 assert(distIndexHtml.includes('http-equiv="Content-Security-Policy"'), 'dist/index.html must contain a CSP meta tag');
 assert(distIndexHtml.includes("default-src 'self'"), "dist/index.html CSP must contain default-src 'self'");
 assert(distIndexHtml.includes("script-src 'self'"), "dist/index.html CSP must lock down script-src 'self'");
+assert(distIndexHtml.includes("img-src 'self' data: blob:"), "dist/index.html CSP must restrict img-src to 'self' data: blob:");
 assert(!distIndexHtml.includes('http://localhost:5173'), "dist/index.html CSP must not contain localhost dev URLs");
 assert(!distIndexHtml.includes("'unsafe-eval'"), "dist/index.html CSP must not allow unsafe-eval");
 console.log('✓ dist/index.html (Strict Production CSP) is properly hardened.');
@@ -108,6 +110,31 @@ assert(mainCjs.includes('sanitizePdfHtml'), 'electron/main.cjs notes:exportPdf m
 assert(mainCjs.includes("pdfWin.webContents.on('will-navigate'"), 'electron/main.cjs pdfWin must lock down navigation');
 assert(mainCjs.includes('pdfWin.webContents.setWindowOpenHandler'), 'electron/main.cjs pdfWin must deny window.open');
 console.log('✓ Native PDF export offline CSP, HTML sanitization, and window navigation lock verified.');
+
+// 7. CISO Audit Controls (Header Auth, IPC Sender Verification, Schema Validation, Env Isolation, Zero localStorage Shadowing, & Website CSP)
+console.log('\nTest 7: CISO Audit Controls (Header Auth, IPC Sender Checks, Storage Purge, & Beacon-Free CSP)');
+assert(mainCjs.includes("'x-goog-api-key': resolvedKey"), 'electron/main.cjs must authenticate Gemini requests via x-goog-api-key header');
+assert(!mainCjs.includes('?key=${encodeURIComponent(resolvedKey)}'), 'electron/main.cjs must not transmit API keys in URL query strings');
+assert(mainCjs.includes('function isTrustedIpcSender('), 'electron/main.cjs must define isTrustedIpcSender');
+assert(mainCjs.includes('assertTrustedIpcSender(event)'), 'electron/main.cjs must enforce assertTrustedIpcSender on IPC handlers');
+assert(mainCjs.includes('function isDevEnvironment('), 'electron/main.cjs must gate localhost:5173 behind isDevEnvironment()');
+assert(mainCjs.includes('function sanitizeSettingsForSave('), 'electron/main.cjs must validate settings via sanitizeSettingsForSave');
+assert(mainCjs.includes('safeChildEnv'), 'electron/main.cjs must isolate subprocess environment via safeChildEnv');
+assert(mainCjs.includes("img-src 'self' data: blob:"), 'electron/main.cjs runtime CSP must block wildcard https: image beacons');
+
+const storageTs = fs.readFileSync(path.join(__dirname, '../src/services/storage.ts'), 'utf-8');
+assert(storageTs.includes('localStorage.removeItem'), 'src/services/storage.ts must purge Chromium localStorage shadow copies in desktop mode');
+assert(storageTs.includes('clearLocalKey(SETTINGS_STORAGE_KEY)'), 'src/services/storage.ts must scrub SETTINGS_STORAGE_KEY in Electron mode');
+assert(storageTs.includes('clearLocalKey(NOTES_STORAGE_KEY)'), 'src/services/storage.ts must scrub NOTES_STORAGE_KEY in Electron mode');
+
+const geminiTs = fs.readFileSync(path.join(__dirname, '../src/services/gemini.ts'), 'utf-8');
+assert(geminiTs.includes("'x-goog-api-key': apiKey"), 'src/services/gemini.ts must use x-goog-api-key header');
+assert(!geminiTs.includes('?key=${encodeURIComponent(apiKey)}'), 'src/services/gemini.ts must not put API keys in URL query strings');
+
+const websiteHtml = fs.readFileSync(path.join(__dirname, '../website/index.html'), 'utf-8');
+assert(websiteHtml.includes('http-equiv="Content-Security-Policy"'), 'website/index.html must include a CSP meta tag');
+assert(!websiteHtml.includes('fonts.googleapis.com'), 'website/index.html must not send visitor requests to third-party font CDNs');
+console.log('✓ Header-only auth, IPC sender verification, settings allowlist, subprocess isolation, storage purge, and website CSP verified.');
 
 console.log('\n======================================================');
 console.log('ALL SECURITY VERIFICATION CHECKS PASSED SUCCESSFULLY!');
