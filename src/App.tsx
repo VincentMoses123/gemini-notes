@@ -1,15 +1,19 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { FilePlus, LayoutTemplate, Sparkles } from 'lucide-react';
-import { AccentTheme, AppSettings, LogEntry, Note, ThemeMode } from './types';
+import { AccentTheme, AppSettings, KnowledgeDocument, LogEntry, Note, ThemeMode } from './types';
 import {
   DEFAULT_FOLDERS,
   DEFAULT_SETTINGS,
+  loadKnowledgeDocsFromStorage,
   loadNotesFromStorage,
   loadSettingsFromStorage,
+  saveKnowledgeDocsToStorage,
   saveNotesToStorage,
   saveSettingsToStorage,
 } from './services/storage';
 import { initLogger, logEvent, subscribeToLogs } from './services/logger';
+import { markdownToHtml } from './services/gemini';
+import { sanitizeHtml } from './services/sanitizer';
 import { FilterView, Sidebar } from './components/Sidebar';
 import { Editor } from './components/Editor';
 import { SettingsModal } from './components/SettingsModal';
@@ -17,9 +21,11 @@ import { ChatSidebar } from './components/ChatSidebar';
 import { TemplatesModal } from './components/TemplatesModal';
 import { LogsModal } from './components/LogsModal';
 import { CommandPalette } from './components/CommandPalette';
+import { KnowledgeBaseModal } from './components/KnowledgeBaseModal';
 
 export const App: React.FC = () => {
   const [notes, setNotes] = useState<Note[]>([]);
+  const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDocument[]>([]);
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const [filterView, setFilterView] = useState<FilterView>('all');
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
@@ -28,6 +34,7 @@ export const App: React.FC = () => {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [kbOpen, setKbOpen] = useState(false);
   const [logsOpen, setLogsOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
@@ -39,13 +46,15 @@ export const App: React.FC = () => {
   useEffect(() => {
     const unsubscribe = subscribeToLogs(setLogs);
     async function init() {
-      const [loadedNotes, loadedSettings] = await Promise.all([
+      const [loadedNotes, loadedSettings, loadedDocs] = await Promise.all([
         loadNotesFromStorage(),
         loadSettingsFromStorage(),
+        loadKnowledgeDocsFromStorage(),
         initLogger(),
       ]);
       setNotes(loadedNotes);
       setSettings(loadedSettings);
+      setKnowledgeDocs(loadedDocs);
       const firstActive = loadedNotes.find((n) => !n.trashed);
       if (firstActive) {
         setActiveNoteId(firstActive.id);
@@ -65,11 +74,16 @@ export const App: React.FC = () => {
     );
   }, [settings.theme, settings.accentTheme]);
 
-  // Save notes whenever they change
+  // Save notes & knowledge base documents whenever they change
   useEffect(() => {
     if (!initialized) return;
     saveNotesToStorage(notes);
   }, [notes, initialized]);
+
+  useEffect(() => {
+    if (!initialized) return;
+    saveKnowledgeDocsToStorage(knowledgeDocs);
+  }, [knowledgeDocs, initialized]);
 
   const handleCreateNote = useCallback(() => {
     const now = new Date().toISOString();
@@ -179,16 +193,19 @@ export const App: React.FC = () => {
     [notes, activeNoteId, settings]
   );
 
-  // Global keyboard shortcuts (Cmd+N, Cmd+K, Cmd+J, Cmd+L, Cmd+\, Cmd+,, Cmd+Shift+E)
+  // Global keyboard shortcuts (Cmd+N, Cmd+K, Cmd+Shift+K, Cmd+J, Cmd+L, Cmd+\, Cmd+,, Cmd+Shift+E)
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'e') {
         e.preventDefault();
         handleExportNotePdf();
-      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
+      } else if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setKbOpen((prev) => !prev);
+      } else if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'n') {
         e.preventDefault();
         handleCreateNote();
-      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      } else if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setCommandPaletteOpen((prev) => !prev);
       } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'l') {
@@ -333,6 +350,7 @@ export const App: React.FC = () => {
           searchQuery={searchQuery}
           hasApiKey={Boolean(settings.apiKey?.trim())}
           errorCount={errorCount}
+          knowledgeCount={knowledgeDocs.filter((d) => d.enabled).length}
           theme={settings.theme}
           accentTheme={currentAccent}
           layoutMode={currentLayout}
@@ -346,6 +364,7 @@ export const App: React.FC = () => {
           onSearchChange={setSearchQuery}
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenLogs={() => setLogsOpen(true)}
+          onOpenKnowledgeBase={() => setKbOpen(true)}
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
           onToggleTheme={handleToggleTheme}
           onSelectAccent={handleSelectAccent}
@@ -364,10 +383,12 @@ export const App: React.FC = () => {
           focusMode={focusMode}
           accentTheme={currentAccent}
           layoutMode={currentLayout}
+          knowledgeDocs={knowledgeDocs}
           onUpdateNote={handleUpdateActiveNote}
           onTrashNote={handleTrashNote}
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenLogs={() => setLogsOpen(true)}
+          onOpenKnowledgeBase={() => setKbOpen(true)}
           onToggleChat={() => setChatOpen((prev) => !prev)}
           onToggleFocusMode={() => setFocusMode((prev) => !prev)}
           onSelectAccent={handleSelectAccent}
@@ -403,9 +424,11 @@ export const App: React.FC = () => {
       {chatOpen && (
         <ChatSidebar
           notes={notes}
+          knowledgeDocs={knowledgeDocs}
           settings={settings}
           onClose={() => setChatOpen(false)}
           onSelectNote={(id) => setActiveNoteId(id)}
+          onOpenKnowledgeBase={() => setKbOpen(true)}
           onCreateNoteFromAnswer={(title, htmlContent) =>
             handleCreateFromTemplate({
               title,
@@ -415,6 +438,22 @@ export const App: React.FC = () => {
             })
           }
           onOpenSettings={() => setSettingsOpen(true)}
+        />
+      )}
+
+      {kbOpen && (
+        <KnowledgeBaseModal
+          docs={knowledgeDocs}
+          onUpdateDocs={setKnowledgeDocs}
+          onCreateNoteFromDoc={(doc) =>
+            handleCreateFromTemplate({
+              title: doc.name.replace(/\.[^.]+$/, ''),
+              content: sanitizeHtml(markdownToHtml(doc.content)),
+              folder: selectedFolder || 'General',
+              tags: ['reference', doc.fileType],
+            })
+          }
+          onClose={() => setKbOpen(false)}
         />
       )}
 
@@ -437,6 +476,7 @@ export const App: React.FC = () => {
           onSelectNote={(id) => setActiveNoteId(id)}
           onCreateNote={handleCreateNote}
           onOpenTemplates={() => setTemplatesOpen(true)}
+          onOpenKnowledgeBase={() => setKbOpen(true)}
           onToggleChat={() => setChatOpen((prev) => !prev)}
           onOpenLogs={() => setLogsOpen(true)}
           onOpenSettings={() => setSettingsOpen(true)}

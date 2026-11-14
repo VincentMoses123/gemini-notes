@@ -10,6 +10,7 @@ import {
   Maximize2,
   Sun,
   FileDown,
+  Database,
 } from 'lucide-react';
 import { Note } from '../types';
 
@@ -19,6 +20,7 @@ interface CommandPaletteProps {
   onSelectNote: (id: string) => void;
   onCreateNote: () => void;
   onOpenTemplates: () => void;
+  onOpenKnowledgeBase?: () => void;
   onToggleChat: () => void;
   onOpenLogs: () => void;
   onOpenSettings: () => void;
@@ -33,6 +35,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   onSelectNote,
   onCreateNote,
   onOpenTemplates,
+  onOpenKnowledgeBase,
   onToggleChat,
   onOpenLogs,
   onOpenSettings,
@@ -60,6 +63,17 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       icon: <LayoutTemplate size={15} />,
       run: onOpenTemplates,
     },
+    ...(onOpenKnowledgeBase
+      ? [
+          {
+            id: 'act-kb',
+            label: 'Open Personal Knowledge Base (Reference Docs)',
+            hint: '⌘⇧K',
+            icon: <Database size={15} />,
+            run: onOpenKnowledgeBase,
+          },
+        ]
+      : []),
     {
       id: 'act-chat',
       label: 'Toggle Chat with All Notes Sidebar',

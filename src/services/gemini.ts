@@ -1,4 +1,4 @@
-import { AIActionType, AppSettings, ChatMessage, ErrorCode, Note } from '../types';
+import { AIActionType, AppSettings, ChatMessage, ErrorCode, KnowledgeDocument, Note } from '../types';
 import { stripHtmlToText } from './storage';
 import { classifyErrorCode, logEvent, redactSensitiveString } from './logger';
 
@@ -246,16 +246,153 @@ export async function callGeminiRaw(params: {
   }
 }
 
+function splitIntoChunks(text: string, chunkSize = 900): string[] {
+  const clean = text.trim();
+  if (!clean) return [];
+  if (clean.length <= chunkSize) return [clean];
+
+  const paragraphs = clean.split(/\n{2,}/);
+  const chunks: string[] = [];
+  let current = '';
+
+  const pushOversized = (block: string) => {
+    for (let i = 0; i < block.length; i += chunkSize) {
+      chunks.push(block.slice(i, i + chunkSize).trim());
+    }
+  };
+
+  for (const para of paragraphs) {
+    const trimmed = para.trim();
+    if (!trimmed) continue;
+    if (trimmed.length > chunkSize) {
+      if (current) {
+        chunks.push(current.trim());
+        current = '';
+      }
+      pushOversized(trimmed);
+      continue;
+    }
+    if (current && current.length + trimmed.length + 2 > chunkSize) {
+      chunks.push(current.trim());
+      current = trimmed;
+    } else {
+      current = current ? `${current}\n\n${trimmed}` : trimmed;
+    }
+  }
+  if (current.trim()) chunks.push(current.trim());
+  return chunks;
+}
+
+export function retrieveRelevantKnowledgeContext(
+  queryText: string,
+  docs?: KnowledgeDocument[],
+  maxTotalChars = 8000
+): { contextBlock: string; usedDocs: KnowledgeDocument[] } {
+  const activeDocs = (docs || []).filter((d) => d.enabled && d.content.trim().length > 0);
+  if (activeDocs.length === 0) return { contextBlock: '', usedDocs: [] };
+
+  const STOP_WORDS = new Set([
+    'the', 'and', 'for', 'with', 'that', 'this', 'from', 'what', 'how', 'when',
+    'where', 'who', 'why', 'are', 'you', 'your', 'can', 'about', 'into', 'have',
+    'all', 'use', 'notes', 'note', 'please', 'summarize',
+  ]);
+
+  const keywords = Array.from(
+    new Set(
+      (queryText || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9\s_-]/g, ' ')
+        .split(/\s+/)
+        .filter((w) => w.length >= 3 && !STOP_WORDS.has(w))
+    )
+  ).slice(0, 24);
+
+  interface ScoredChunk {
+    doc: KnowledgeDocument;
+    chunkIndex: number;
+    totalChunks: number;
+    text: string;
+    score: number;
+  }
+
+  const scored: ScoredChunk[] = [];
+  for (const doc of activeDocs) {
+    const chunks = splitIntoChunks(doc.content, 900);
+    const nameLower = doc.name.toLowerCase();
+    for (let i = 0; i < chunks.length; i++) {
+      const chunkText = chunks[i];
+      const lower = chunkText.toLowerCase();
+      let score = i === 0 ? 0.5 : 0;
+
+      for (const kw of keywords) {
+        if (nameLower.includes(kw)) score += 3;
+        if (lower.includes(kw)) {
+          const occurrences = lower.split(kw).length - 1;
+          score += 2 + Math.min(occurrences, 4) * 0.5;
+        }
+      }
+      scored.push({
+        doc,
+        chunkIndex: i,
+        totalChunks: chunks.length,
+        text: chunkText,
+        score,
+      });
+    }
+  }
+
+  scored.sort((a, b) => b.score - a.score || a.chunkIndex - b.chunkIndex);
+
+  const selected: ScoredChunk[] = [];
+  const usedDocMap = new Map<string, KnowledgeDocument>();
+  let totalChars = 0;
+
+  for (const item of scored) {
+    const label = `[Document: "${item.doc.name}" | Type: ${item.doc.fileType.toUpperCase()}${
+      item.totalChunks > 1 ? ` | Section ${item.chunkIndex + 1}/${item.totalChunks}` : ''
+    }]`;
+    const entry = `${label}\n${item.text}`;
+    if (selected.length > 0 && totalChars + entry.length > maxTotalChars) continue;
+    selected.push(item);
+    usedDocMap.set(item.doc.id, item.doc);
+    totalChars += entry.length + 7;
+    if (totalChars >= maxTotalChars) break;
+  }
+
+  const contextBlock = selected
+    .map(
+      (item) =>
+        `[Document: "${item.doc.name}" | Type: ${item.doc.fileType.toUpperCase()}${
+          item.totalChunks > 1 ? ` | Section ${item.chunkIndex + 1}/${item.totalChunks}` : ''
+        }]\n${item.text}`
+    )
+    .join('\n\n---\n\n');
+
+  return { contextBlock, usedDocs: Array.from(usedDocMap.values()) };
+}
+
 export async function runGeminiAction(params: {
   action: AIActionType;
   targetText: string;
   noteTitle: string;
   customInstruction?: string;
+  knowledgeDocs?: KnowledgeDocument[];
   settings: AppSettings;
 }): Promise<GeminiRawResult> {
-  const { action, targetText, noteTitle, customInstruction, settings } = params;
+  const { action, targetText, noteTitle, customInstruction, knowledgeDocs, settings } = params;
+  let prompt = buildPromptForAction(action, targetText, noteTitle, customInstruction);
+
+  const kb = retrieveRelevantKnowledgeContext(
+    `${noteTitle} ${targetText} ${customInstruction || ''}`,
+    knowledgeDocs,
+    6000
+  );
+  if (kb.contextBlock) {
+    prompt += `\n\n=== PERSONAL KNOWLEDGE BASE REFERENCE DOCS (${kb.usedDocs.length} matched) ===\nReference these personal documents if they help inform or verify the response:\n${kb.contextBlock}\n=== END OF REFERENCE DOCS ===`;
+  }
+
   return callGeminiRaw({
-    prompt: buildPromptForAction(action, targetText, noteTitle, customInstruction),
+    prompt,
     actionLabel: `Inline AI (${action})`,
     systemInstruction: SYSTEM_INSTRUCTION,
     settings,
@@ -357,15 +494,19 @@ export async function chatWithAllNotes(params: {
   question: string;
   history: ChatMessage[];
   notes: Note[];
+  knowledgeDocs?: KnowledgeDocument[];
   settings: AppSettings;
 }): Promise<{
   ok: boolean;
   answer?: string;
   citedNotes?: { id: string; title: string }[];
+  citedDocs?: { id: string; name: string }[];
   error?: string;
 }> {
-  const { question, history, notes, settings } = params;
+  const { question, history, notes, knowledgeDocs, settings } = params;
   const activeNotes = notes.filter((n) => !n.trashed);
+  const enabledDocs = (knowledgeDocs || []).filter((d) => d.enabled && d.content.trim().length > 0);
+  const kb = retrieveRelevantKnowledgeContext(question, enabledDocs, 10000);
 
   const notesContext = activeNotes
     .map(
@@ -381,24 +522,28 @@ export async function chatWithAllNotes(params: {
     .map((m) => `${m.role === 'user' ? 'User' : 'Gemini'}: ${m.content}`)
     .join('\n\n');
 
-  const prompt = `You have access to the user's personal notes library below:
+  const kbSection = kb.contextBlock
+    ? `\n\n=== PERSONAL KNOWLEDGE BASE DOCUMENTS (${enabledDocs.length} active docs) ===\n${kb.contextBlock}\n=== END OF KNOWLEDGE BASE ===`
+    : '';
+
+  const prompt = `You have access to the user's personal notes library and personal Knowledge Base documents below:
 
 === USER NOTES LIBRARY (${activeNotes.length} notes) ===
 ${notesContext || '(No notes yet)'}
-=== END OF NOTES ===
+=== END OF NOTES ===${kbSection}
 
 ${recentHistory ? `=== RECENT CONVERSATION ===\n${recentHistory}\n===\n\n` : ''}User Question: ${question}
 
 Instructions:
-1. Answer the user's question helpfully and accurately based on their notes (and general knowledge if they ask to brainstorm or expand).
-2. Mention relevant note titles in **bold** when referencing information from their notes.
+1. Answer the user's question helpfully and accurately based on their notes and Personal Knowledge Base documents (and general knowledge if they ask to brainstorm or expand).
+2. Mention relevant note titles or Knowledge Base document names in **bold** when referencing information from them.
 3. Keep formatting clean and readable using Markdown.`;
 
   const res = await callGeminiRaw({
     prompt,
-    actionLabel: `Chat with Notes (${activeNotes.length} notes)`,
+    actionLabel: `Chat with Notes (${activeNotes.length} notes, ${enabledDocs.length} docs)`,
     systemInstruction:
-      'You are an intelligent knowledge-base assistant built into Gemini Notes. Help the user find insights, synthesize information, and answer questions across all their notes.',
+      'You are an intelligent knowledge-base assistant built into Gemini Notes. Help the user find insights, synthesize information, and answer questions across all their notes and personal reference documents.',
     settings,
   });
 
@@ -415,7 +560,19 @@ Instructions:
     .slice(0, 4)
     .map((n) => ({ id: n.id, title: n.title || 'Untitled Note' }));
 
-  return { ok: true, answer: res.text, citedNotes };
+  const citedDocs = enabledDocs
+    .filter((d) => {
+      const fullName = d.name.trim().toLowerCase();
+      const baseName = fullName.replace(/\.[^.]+$/, '');
+      return (
+        (fullName.length > 3 && answerLower.includes(fullName)) ||
+        (baseName.length > 3 && answerLower.includes(baseName))
+      );
+    })
+    .slice(0, 4)
+    .map((d) => ({ id: d.id, name: d.name }));
+
+  return { ok: true, answer: res.text, citedNotes, citedDocs };
 }
 
 /**

@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, dialog, shell, session } = require('electron');
+const { execFileSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -93,6 +94,72 @@ const getStorageFilePath = (name) => path.join(getStorageDir(), name);
 const getNotesFilePath = () => getStorageFilePath('notes.json');
 const getSettingsFilePath = () => getStorageFilePath('settings.json');
 const getLogsFilePath = () => getStorageFilePath('app-logs.json');
+const getKnowledgeBaseFilePath = () => getStorageFilePath('knowledge-base.json');
+
+function normalizeExtractedText(raw) {
+  return String(raw || '')
+    .replace(/\r\n/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+    .slice(0, 120000);
+}
+
+function mapKnowledgeExtType(ext) {
+  const clean = ext.toLowerCase().replace(/^\./, '');
+  if (clean === 'pdf') return 'pdf';
+  if (clean === 'md' || clean === 'markdown') return 'md';
+  if (clean === 'csv') return 'csv';
+  if (clean === 'json') return 'json';
+  if (clean === 'txt') return 'txt';
+  return 'doc';
+}
+
+function extractTextFromFile(filePath, ext) {
+  const cleanExt = ext.toLowerCase().replace(/^\./, '');
+  if (cleanExt === 'pdf') {
+    if (process.platform === 'darwin') {
+      try {
+        const swiftScript =
+          'import Foundation; import PDFKit; let u = URL(fileURLWithPath: CommandLine.arguments[1]); if let d = PDFDocument(url: u), let s = d.string { print(s) }';
+        const out = execFileSync('/usr/bin/swift', ['-e', swiftScript, filePath], {
+          encoding: 'utf-8',
+          timeout: 15000,
+          maxBuffer: 20 * 1024 * 1024,
+        });
+        const cleanOut = normalizeExtractedText(out);
+        if (cleanOut) return cleanOut;
+      } catch {
+        // fallback below
+      }
+    }
+    const rawBuf = fs.readFileSync(filePath).toString('latin1');
+    const chunks = Array.from(rawBuf.matchAll(/\(([^()\\]{4,})\)\s*Tj/g), (m) => m[1]);
+    return normalizeExtractedText(chunks.join(' '));
+  }
+
+  if (['rtf', 'doc', 'docx', 'odt'].includes(cleanExt) && process.platform === 'darwin') {
+    try {
+      const out = execFileSync('/usr/bin/textutil', ['-convert', 'txt', '-stdout', filePath], {
+        encoding: 'utf-8',
+        timeout: 10000,
+        maxBuffer: 20 * 1024 * 1024,
+      });
+      return normalizeExtractedText(out);
+    } catch {
+      // fallback below
+    }
+  }
+
+  const rawText = fs.readFileSync(filePath, 'utf-8');
+  if (cleanExt === 'html' || cleanExt === 'htm') {
+    const stripped = rawText
+      .replace(/<\s*(script|style)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ');
+    return normalizeExtractedText(stripped);
+  }
+  return normalizeExtractedText(rawText);
+}
 
 /**
  * Unified JSON reader with graceful fallback.
@@ -340,6 +407,60 @@ app.whenReady().then(() => {
   ipcMain.handle('settings:save', async (_event, settings) =>
     saveJsonWithResult(getSettingsFilePath(), settings)
   );
+
+  ipcMain.handle('kb:load', async () => {
+    const docs = readJsonFile(getKnowledgeBaseFilePath(), []);
+    return Array.isArray(docs) ? docs : [];
+  });
+  ipcMain.handle('kb:save', async (_event, docs) =>
+    saveJsonWithResult(getKnowledgeBaseFilePath(), Array.isArray(docs) ? docs : [])
+  );
+  ipcMain.handle('kb:importFiles', async () => {
+    try {
+      const result = await dialog.showOpenDialog({
+        title: 'Import Reference Documents to Knowledge Base',
+        properties: ['openFile', 'multiSelections'],
+        filters: [
+          {
+            name: 'Documents',
+            extensions: ['pdf', 'md', 'markdown', 'txt', 'csv', 'json', 'rtf', 'doc', 'docx', 'html'],
+          },
+        ],
+      });
+      if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
+        return { ok: false, canceled: true };
+      }
+
+      const now = new Date().toISOString();
+      const imported = [];
+      for (const filePath of result.filePaths) {
+        const stat = fs.statSync(filePath);
+        const ext = path.extname(filePath);
+        const content = extractTextFromFile(filePath, ext);
+        if (!content) continue;
+        imported.push({
+          id: `kb-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          name: path.basename(filePath),
+          fileType: mapKnowledgeExtType(ext),
+          content,
+          sizeBytes: stat.size,
+          enabled: true,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+
+      if (imported.length === 0) {
+        return {
+          ok: false,
+          error: 'No readable text could be extracted from the selected file(s).',
+        };
+      }
+      return { ok: true, docs: imported };
+    } catch (err) {
+      return { ok: false, error: err && err.message ? err.message : 'Failed to import files.' };
+    }
+  });
 
   ipcMain.handle('logs:load', async () => {
     const logs = readJsonFile(getLogsFilePath(), []);

@@ -93,7 +93,21 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   citedNotes?: { id: string; title: string }[];
+  citedDocs?: { id: string; name: string }[];
   createdAt: string;
+}
+
+export type KnowledgeDocType = 'pdf' | 'md' | 'txt' | 'csv' | 'json' | 'doc';
+
+export interface KnowledgeDocument {
+  id: string;
+  name: string;
+  fileType: KnowledgeDocType;
+  content: string;
+  sizeBytes: number;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface NoteTemplate {
@@ -150,6 +164,14 @@ export interface ElectronAPI {
   loadLogs: () => Promise<LogEntry[]>;
   appendLog: (entry: LogEntry) => Promise<{ ok: boolean }>;
   clearLogs: () => Promise<{ ok: boolean }>;
+  loadKnowledgeDocs: () => Promise<KnowledgeDocument[]>;
+  saveKnowledgeDocs: (docs: KnowledgeDocument[]) => Promise<{ ok: boolean; error?: string }>;
+  importKnowledgeFiles: () => Promise<{
+    ok: boolean;
+    docs?: KnowledgeDocument[];
+    canceled?: boolean;
+    error?: string;
+  }>;
   openStorageFolder: () => Promise<{ ok: boolean }>;
   exportMarkdown: (payload: { title: string; markdown: string }) => Promise<{ ok: boolean; filePath?: string }>;
   exportPdf: (payload: {

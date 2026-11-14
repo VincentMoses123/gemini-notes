@@ -17,6 +17,7 @@ import {
   PanelLeftClose,
   Columns,
   Hash,
+  Database,
 } from 'lucide-react';
 import { AccentTheme, LayoutMode, Note, ThemeMode } from '../types';
 import { formatShortNoteTime, getNoteDateBucket, stripHtmlToText } from '../services/storage';
@@ -57,6 +58,7 @@ interface SidebarProps {
   searchQuery: string;
   hasApiKey: boolean;
   errorCount: number;
+  knowledgeCount?: number;
   theme: ThemeMode;
   accentTheme: AccentTheme;
   layoutMode: LayoutMode;
@@ -70,6 +72,7 @@ interface SidebarProps {
   onSearchChange: (q: string) => void;
   onOpenSettings: () => void;
   onOpenLogs: () => void;
+  onOpenKnowledgeBase?: () => void;
   onOpenCommandPalette: () => void;
   onToggleTheme: () => void;
   onSelectAccent: (accent: AccentTheme) => void;
@@ -91,6 +94,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   searchQuery,
   hasApiKey,
   errorCount,
+  knowledgeCount = 0,
   theme,
   accentTheme,
   layoutMode,
@@ -104,6 +108,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSearchChange,
   onOpenSettings,
   onOpenLogs,
+  onOpenKnowledgeBase,
   onOpenCommandPalette,
   onToggleTheme,
   onSelectAccent,
@@ -289,6 +294,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const renderComposeActions = () => (
     <div className="notelist-top-actions no-drag">
+      {onOpenKnowledgeBase && (
+        <button
+          type="button"
+          className="apple-toolbar-icon-btn"
+          onClick={onOpenKnowledgeBase}
+          title={`Personal Knowledge Base (${knowledgeCount} active docs)  ⌘⇧K`}
+        >
+          <Database size={15} />
+        </button>
+      )}
       <button
         type="button"
         className="apple-toolbar-icon-btn"
@@ -473,6 +488,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {(alwaysShowBadge || count > 0) && <span className="nav-badge">{count}</span>}
               </button>
             ))}
+            {onOpenKnowledgeBase && (
+              <button
+                type="button"
+                className="nav-item"
+                onClick={onOpenKnowledgeBase}
+                title="Manage Personal Reference Docs (⌘⇧K)"
+              >
+                <Database size={14} className="nav-item-icon" />
+                <span>Knowledge Base</span>
+                {knowledgeCount > 0 && <span className="nav-badge">{knowledgeCount}</span>}
+              </button>
+            )}
           </nav>
 
           <div className="sidebar-folders-section">

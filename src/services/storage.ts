@@ -1,7 +1,8 @@
-import { AppSettings, Note, NoteSnapshot, NoteTemplate } from '../types';
+import { AppSettings, KnowledgeDocument, Note, NoteSnapshot, NoteTemplate } from '../types';
 
 const NOTES_STORAGE_KEY = 'gemini_notes_data_v1';
 const SETTINGS_STORAGE_KEY = 'gemini_notes_settings_v1';
+const KNOWLEDGE_STORAGE_KEY = 'gemini_notes_kb_v1';
 
 export const DEFAULT_FOLDERS = ['General', 'Work', 'Projects', 'Journal'];
 
@@ -261,6 +262,22 @@ export async function saveSettingsToStorage(settings: AppSettings): Promise<void
     await window.electronAPI.saveSettings(settings);
   }
   writeLocalJson(SETTINGS_STORAGE_KEY, settings);
+}
+
+export async function loadKnowledgeDocsFromStorage(): Promise<KnowledgeDocument[]> {
+  if (window.electronAPI?.loadKnowledgeDocs) {
+    const docs = await window.electronAPI.loadKnowledgeDocs();
+    if (Array.isArray(docs)) return docs;
+  }
+  const parsed = readLocalJson<KnowledgeDocument[]>(KNOWLEDGE_STORAGE_KEY);
+  return Array.isArray(parsed) ? parsed : [];
+}
+
+export async function saveKnowledgeDocsToStorage(docs: KnowledgeDocument[]): Promise<void> {
+  if (window.electronAPI?.saveKnowledgeDocs) {
+    await window.electronAPI.saveKnowledgeDocs(docs);
+  }
+  writeLocalJson(KNOWLEDGE_STORAGE_KEY, docs);
 }
 
 export function stripHtmlToText(html: string): string {

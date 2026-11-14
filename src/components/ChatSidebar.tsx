@@ -8,16 +8,19 @@ import {
   FilePlus,
   Trash2,
   MessageSquare,
+  Database,
 } from 'lucide-react';
-import { AppSettings, ChatMessage, Note } from '../types';
+import { AppSettings, ChatMessage, KnowledgeDocument, Note } from '../types';
 import { chatWithAllNotes, markdownToHtml } from '../services/gemini';
 import { sanitizeHtml } from '../services/sanitizer';
 
 interface ChatSidebarProps {
   notes: Note[];
+  knowledgeDocs?: KnowledgeDocument[];
   settings: AppSettings;
   onClose: () => void;
   onSelectNote: (noteId: string) => void;
+  onOpenKnowledgeBase?: () => void;
   onCreateNoteFromAnswer: (title: string, htmlContent: string) => void;
   onOpenSettings: () => void;
 }
@@ -30,9 +33,11 @@ const STARTER_PROMPTS = [
 
 export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   notes,
+  knowledgeDocs = [],
   settings,
   onClose,
   onSelectNote,
+  onOpenKnowledgeBase,
   onCreateNoteFromAnswer,
   onOpenSettings,
 }) => {
@@ -43,6 +48,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const activeNotesCount = notes.filter((n) => !n.trashed).length;
+  const activeDocsCount = knowledgeDocs.filter((d) => d.enabled).length;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -69,6 +75,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
       question: trimmed,
       history: updatedHistory,
       notes,
+      knowledgeDocs,
       settings,
     });
 
@@ -80,6 +87,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
         role: 'assistant',
         content: res.answer,
         citedNotes: res.citedNotes,
+        citedDocs: res.citedDocs,
         createdAt: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, aiMsg]);
@@ -95,7 +103,18 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
           <Sparkles size={16} className="accent-icon" />
           <div>
             <h4>Chat with All Notes</h4>
-            <span>{activeNotesCount} notes indexed in context</span>
+            <span>
+              {activeNotesCount} notes &bull; {activeDocsCount} docs in context{' '}
+              {onOpenKnowledgeBase && (
+                <button
+                  type="button"
+                  className="chat-kb-link-btn"
+                  onClick={onOpenKnowledgeBase}
+                >
+                  Manage Docs
+                </button>
+              )}
+            </span>
           </div>
         </div>
         <div className="chat-header-actions">
@@ -164,6 +183,24 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                             >
                               <FileText size={11} />
                               <span>{cn.title}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {msg.citedDocs && msg.citedDocs.length > 0 && (
+                      <div className="cited-notes-box">
+                        <span className="cited-label">Referenced docs:</span>
+                        <div className="cited-chips">
+                          {msg.citedDocs.map((cd) => (
+                            <button
+                              key={cd.id}
+                              type="button"
+                              className="cited-doc-chip"
+                              onClick={() => onOpenKnowledgeBase?.()}
+                            >
+                              <Database size={11} />
+                              <span>{cd.name}</span>
                             </button>
                           ))}
                         </div>

@@ -42,11 +42,13 @@ import {
   Terminal,
   PanelLeft,
   FileDown,
+  Database,
 } from 'lucide-react';
 import {
   AccentTheme,
   AIActionType,
   AppSettings,
+  KnowledgeDocument,
   LayoutMode,
   Note,
   NoteSnapshot,
@@ -68,10 +70,12 @@ interface EditorProps {
   focusMode: boolean;
   accentTheme: AccentTheme;
   layoutMode: LayoutMode;
+  knowledgeDocs?: KnowledgeDocument[];
   onUpdateNote: (updated: Partial<Note>) => void;
   onTrashNote: (id: string) => void;
   onOpenSettings: () => void;
   onOpenLogs: () => void;
+  onOpenKnowledgeBase?: () => void;
   onToggleChat: () => void;
   onToggleFocusMode: () => void;
   onSelectAccent: (accent: AccentTheme) => void;
@@ -185,10 +189,12 @@ export const Editor: React.FC<EditorProps> = ({
   chatOpen,
   focusMode,
   layoutMode,
+  knowledgeDocs = [],
   onUpdateNote,
   onTrashNote,
   onOpenSettings,
   onOpenLogs,
+  onOpenKnowledgeBase,
   onToggleChat,
   onToggleFocusMode,
   onToggleLayoutMode,
@@ -373,6 +379,7 @@ export const Editor: React.FC<EditorProps> = ({
       targetText: target,
       noteTitle: note.title,
       customInstruction: customInstructionText ?? aiPanel.customPrompt,
+      knowledgeDocs,
       settings,
     });
 
@@ -441,6 +448,18 @@ export const Editor: React.FC<EditorProps> = ({
             category: 'format' as const,
             icon: <FileDown size={15} className="accent-icon" />,
             run: onExportPdf,
+          },
+        ]
+      : []),
+    ...(onOpenKnowledgeBase
+      ? [
+          {
+            id: 'open-kb',
+            label: 'Open Personal Knowledge Base (/kb)',
+            description: 'Manage reference PDFs, docs, and AI context files',
+            category: 'ai' as const,
+            icon: <Database size={15} className="accent-icon" />,
+            run: onOpenKnowledgeBase,
           },
         ]
       : []),
@@ -733,6 +752,20 @@ export const Editor: React.FC<EditorProps> = ({
               title="Export Note as PDF (.pdf)  ⌘⇧E"
             >
               <FileDown size={15} />
+            </button>
+          )}
+
+          {onOpenKnowledgeBase && (
+            <button
+              className={`icon-btn ${
+                knowledgeDocs.some((d) => d.enabled) ? 'pinned-active' : ''
+              }`}
+              onClick={onOpenKnowledgeBase}
+              title={`Personal Knowledge Base (${
+                knowledgeDocs.filter((d) => d.enabled).length
+              } active docs)  ⌘⇧K`}
+            >
+              <Database size={15} />
             </button>
           )}
 
