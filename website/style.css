@@ -1481,3 +1481,73 @@ button {
     grid-template-columns: 1fr;
   }
 }
+
+/* Launch Trailer Button & Modal Player */
+.trailer-cta-btn {
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+.trailer-cta-btn:hover {
+  border-color: rgba(56, 189, 248, 0.75);
+}
+
+.trailer-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(5, 7, 12, 0.82);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.trailer-modal-backdrop[hidden] {
+  display: none;
+}
+
+.trailer-modal-card {
+  width: min(980px, 100%);
+  background: var(--bg-elevated, #181b22);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  border-radius: 18px;
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.65);
+  overflow: hidden;
+}
+
+.trailer-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+}
+
+.trailer-modal-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.trailer-modal-title-group h3 {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--text-primary, #f8fafc);
+}
+
+.trailer-video-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000000;
+}
+
+#trailerVideoPlayer {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}

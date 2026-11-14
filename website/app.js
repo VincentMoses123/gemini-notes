@@ -402,4 +402,48 @@ We talked about launching Gemini Notes v2.4 on Friday. Vincent mentioned the 3-c
       }
     });
   });
+
+  /* --------------------------------------------------------------------------
+   * 6. Launch Trailer Modal Player (#trailerModal)
+   * -------------------------------------------------------------------------- */
+  const openTrailerBtn = document.getElementById('openTrailerBtn');
+  const closeTrailerBtn = document.getElementById('closeTrailerBtn');
+  const trailerModal = document.getElementById('trailerModal');
+  const trailerVideo = document.getElementById('trailerVideoPlayer');
+
+  const closeTrailer = () => {
+    if (!trailerModal) return;
+    trailerModal.hidden = true;
+    if (trailerVideo) {
+      trailerVideo.pause();
+      trailerVideo.currentTime = 0;
+    }
+  };
+
+  if (openTrailerBtn && trailerModal) {
+    openTrailerBtn.addEventListener('click', () => {
+      trailerModal.hidden = false;
+      if (trailerVideo) {
+        trailerVideo.play().catch(() => {});
+      }
+    });
+  }
+
+  if (closeTrailerBtn) {
+    closeTrailerBtn.addEventListener('click', closeTrailer);
+  }
+
+  if (trailerModal) {
+    trailerModal.addEventListener('click', (event) => {
+      if (event.target === trailerModal) {
+        closeTrailer();
+      }
+    });
+  }
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && trailerModal && !trailerModal.hidden) {
+      closeTrailer();
+    }
+  });
 })();
