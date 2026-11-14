@@ -79,10 +79,35 @@ assert(!redactedBearer.includes('ya29.a0AfH6SM'), 'Bearer token must be masked')
 
 console.log('✓ Regex credential redaction passes all attack vector scenarios.');
 
-// 4. Test safe file permission enforcement (0o600)
-console.log('\nTest 4: Sensitive Storage File Permissions (0o600)');
+// 4. Test safe file permission enforcement (0o600) & directory permissions (0o700)
+console.log('\nTest 4: Sensitive Storage File Permissions (0o600 & 0o700)');
 assert(mainCjs.includes('mode: 0o600'), 'Files must be written with secure mode 0o600');
-console.log('✓ Notes and settings file storage enforces strict 0o600 permissions.');
+assert(mainCjs.includes('mode: 0o700'), 'Storage directory must be created with owner-only mode 0o700');
+console.log('✓ Notes, knowledge base, and settings storage enforces strict 0o600 / 0o700 permissions.');
+
+// 5. Personal Knowledge Base Security & Input Sanitization
+console.log('\nTest 5: Personal Knowledge Base Security & Input Sanitization');
+assert(mainCjs.includes('MAX_KB_FILE_BYTES'), 'electron/main.cjs must enforce MAX_KB_FILE_BYTES');
+assert(mainCjs.includes('MAX_KB_CONTENT_CHARS'), 'electron/main.cjs must enforce MAX_KB_CONTENT_CHARS');
+assert(mainCjs.includes('MAX_KB_DOCS'), 'electron/main.cjs must enforce MAX_KB_DOCS');
+assert(mainCjs.includes('ALLOWED_KB_EXTENSIONS'), 'electron/main.cjs must enforce ALLOWED_KB_EXTENSIONS allowlist');
+assert(mainCjs.includes('function sanitizeKnowledgeDocs('), 'electron/main.cjs must define sanitizeKnowledgeDocs');
+assert(mainCjs.includes('KB_TARGET_FILE: filePath'), 'electron/main.cjs must pass PDF path via KB_TARGET_FILE env var to prevent CLI flag injection');
+assert(mainCjs.includes("'-convert', 'txt', '-stdout', '--', filePath"), 'electron/main.cjs must pass -- flag terminator before filePath to textutil');
+assert(mainCjs.includes('!stat.isFile()'), 'electron/main.cjs must verify stat.isFile() before importing KB files');
+assert(mainCjs.includes('stat.size > MAX_KB_FILE_BYTES'), 'electron/main.cjs must enforce MAX_KB_FILE_BYTES check before reading KB files');
+console.log('✓ Personal Knowledge Base import bounds, extension allowlist, CLI flag injection defense, and IPC sanitization verified.');
+
+// 6. Native PDF Export Offline CSP & Renderer Isolation
+console.log('\nTest 6: Native PDF Export Offline CSP & Renderer Isolation');
+assert(
+  mainCjs.includes("default-src 'none'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src 'none'; connect-src 'none'"),
+  'electron/main.cjs notes:exportPdf must enforce an offline CSP inside documentHtml'
+);
+assert(mainCjs.includes('sanitizePdfHtml'), 'electron/main.cjs notes:exportPdf must sanitize rendered HTML');
+assert(mainCjs.includes("pdfWin.webContents.on('will-navigate'"), 'electron/main.cjs pdfWin must lock down navigation');
+assert(mainCjs.includes('pdfWin.webContents.setWindowOpenHandler'), 'electron/main.cjs pdfWin must deny window.open');
+console.log('✓ Native PDF export offline CSP, HTML sanitization, and window navigation lock verified.');
 
 console.log('\n======================================================');
 console.log('ALL SECURITY VERIFICATION CHECKS PASSED SUCCESSFULLY!');

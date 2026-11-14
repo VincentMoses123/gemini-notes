@@ -85,7 +85,7 @@ function isAllowedLocalNavigation(targetUrl, indexHtmlPath) {
 function getStorageDir() {
   const dir = path.join(app.getPath('appData'), 'gemini-notes', 'notes-data');
   if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+    fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   }
   return dir;
 }
@@ -96,13 +96,69 @@ const getSettingsFilePath = () => getStorageFilePath('settings.json');
 const getLogsFilePath = () => getStorageFilePath('app-logs.json');
 const getKnowledgeBaseFilePath = () => getStorageFilePath('knowledge-base.json');
 
+const MAX_KB_FILE_BYTES = 25 * 1024 * 1024; // 25 MB per imported file
+const MAX_KB_CONTENT_CHARS = 120000;
+const MAX_KB_DOCS = 200;
+const ALLOWED_KB_EXTENSIONS = new Set([
+  'pdf',
+  'md',
+  'markdown',
+  'txt',
+  'csv',
+  'json',
+  'rtf',
+  'doc',
+  'docx',
+  'odt',
+  'html',
+  'htm',
+]);
+const ALLOWED_KB_DOC_TYPES = new Set(['pdf', 'md', 'txt', 'csv', 'json', 'rtf', 'doc']);
+
 function normalizeExtractedText(raw) {
   return String(raw || '')
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
     .replace(/\r\n/g, '\n')
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim()
-    .slice(0, 120000);
+    .slice(0, MAX_KB_CONTENT_CHARS);
+}
+
+function sanitizeKnowledgeDocs(docs) {
+  if (!Array.isArray(docs)) return [];
+  const now = new Date().toISOString();
+  return docs
+    .filter((d) => d && typeof d === 'object')
+    .slice(0, MAX_KB_DOCS)
+    .map((d, idx) => {
+      const rawName =
+        String(d.name || `Document ${idx + 1}`)
+          .replace(/[\x00-\x1F\x7F/\\]/g, '_')
+          .trim()
+          .slice(0, 200) || `Document ${idx + 1}`;
+      const rawType = String(d.fileType || 'txt').toLowerCase();
+      const fileType = ALLOWED_KB_DOC_TYPES.has(rawType) ? rawType : 'txt';
+      const content = normalizeExtractedText(d.content);
+      const sizeBytes =
+        typeof d.sizeBytes === 'number' && Number.isFinite(d.sizeBytes) && d.sizeBytes >= 0
+          ? Math.min(Math.floor(d.sizeBytes), MAX_KB_FILE_BYTES)
+          : Buffer.byteLength(content, 'utf-8');
+      return {
+        id:
+          String(d.id || `kb-${Date.now()}-${idx}`)
+            .replace(/[^a-zA-Z0-9_-]/g, '')
+            .slice(0, 80) || `kb-${Date.now()}-${idx}`,
+        name: rawName,
+        fileType,
+        content,
+        sizeBytes,
+        enabled: d.enabled !== undefined ? Boolean(d.enabled) : true,
+        createdAt: String(d.createdAt || now).slice(0, 64),
+        updatedAt: String(d.updatedAt || now).slice(0, 64),
+      };
+    })
+    .filter((d) => d.content.length > 0);
 }
 
 function mapKnowledgeExtType(ext) {
@@ -121,11 +177,12 @@ function extractTextFromFile(filePath, ext) {
     if (process.platform === 'darwin') {
       try {
         const swiftScript =
-          'import Foundation; import PDFKit; let u = URL(fileURLWithPath: CommandLine.arguments[1]); if let d = PDFDocument(url: u), let s = d.string { print(s) }';
-        const out = execFileSync('/usr/bin/swift', ['-e', swiftScript, filePath], {
+          'import Foundation; import PDFKit; if let p = ProcessInfo.processInfo.environment["KB_TARGET_FILE"], let d = PDFDocument(url: URL(fileURLWithPath: p)), let s = d.string { print(s) }';
+        const out = execFileSync('/usr/bin/swift', ['-e', swiftScript], {
           encoding: 'utf-8',
           timeout: 15000,
           maxBuffer: 20 * 1024 * 1024,
+          env: { ...process.env, KB_TARGET_FILE: filePath },
         });
         const cleanOut = normalizeExtractedText(out);
         if (cleanOut) return cleanOut;
@@ -140,7 +197,7 @@ function extractTextFromFile(filePath, ext) {
 
   if (['rtf', 'doc', 'docx', 'odt'].includes(cleanExt) && process.platform === 'darwin') {
     try {
-      const out = execFileSync('/usr/bin/textutil', ['-convert', 'txt', '-stdout', filePath], {
+      const out = execFileSync('/usr/bin/textutil', ['-convert', 'txt', '-stdout', '--', filePath], {
         encoding: 'utf-8',
         timeout: 10000,
         maxBuffer: 20 * 1024 * 1024,
@@ -410,10 +467,10 @@ app.whenReady().then(() => {
 
   ipcMain.handle('kb:load', async () => {
     const docs = readJsonFile(getKnowledgeBaseFilePath(), []);
-    return Array.isArray(docs) ? docs : [];
+    return sanitizeKnowledgeDocs(docs);
   });
   ipcMain.handle('kb:save', async (_event, docs) =>
-    saveJsonWithResult(getKnowledgeBaseFilePath(), Array.isArray(docs) ? docs : [])
+    saveJsonWithResult(getKnowledgeBaseFilePath(), sanitizeKnowledgeDocs(docs))
   );
   ipcMain.handle('kb:importFiles', async () => {
     try {
@@ -423,7 +480,7 @@ app.whenReady().then(() => {
         filters: [
           {
             name: 'Documents',
-            extensions: ['pdf', 'md', 'markdown', 'txt', 'csv', 'json', 'rtf', 'doc', 'docx', 'html'],
+            extensions: ['pdf', 'md', 'markdown', 'txt', 'csv', 'json', 'rtf', 'doc', 'docx', 'odt', 'html', 'htm'],
           },
         ],
       });
@@ -433,9 +490,17 @@ app.whenReady().then(() => {
 
       const now = new Date().toISOString();
       const imported = [];
+      let skippedTooLarge = 0;
       for (const filePath of result.filePaths) {
         const stat = fs.statSync(filePath);
+        if (!stat.isFile()) continue;
+        if (stat.size > MAX_KB_FILE_BYTES) {
+          skippedTooLarge += 1;
+          continue;
+        }
         const ext = path.extname(filePath);
+        const cleanExt = ext.toLowerCase().replace(/^\./, '');
+        if (!ALLOWED_KB_EXTENSIONS.has(cleanExt)) continue;
         const content = extractTextFromFile(filePath, ext);
         if (!content) continue;
         imported.push({
@@ -450,13 +515,17 @@ app.whenReady().then(() => {
         });
       }
 
-      if (imported.length === 0) {
+      const sanitizedImported = sanitizeKnowledgeDocs(imported);
+      if (sanitizedImported.length === 0) {
         return {
           ok: false,
-          error: 'No readable text could be extracted from the selected file(s).',
+          error:
+            skippedTooLarge > 0
+              ? `Selected file(s) exceeded the ${Math.round(MAX_KB_FILE_BYTES / (1024 * 1024))} MB size limit.`
+              : 'No readable text could be extracted from the selected file(s).',
         };
       }
-      return { ok: true, docs: imported };
+      return { ok: true, docs: sanitizedImported };
     } catch (err) {
       return { ok: false, error: err && err.message ? err.message : 'Failed to import files.' };
     }
@@ -528,8 +597,14 @@ app.whenReady().then(() => {
 
     const sanitizePdfHtml = (rawHtml) =>
       String(rawHtml ?? '')
-        .replace(/<\s*(script|iframe|object|embed|meta|link|base)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '')
-        .replace(/<\s*(script|iframe|object|embed|meta|link|base)\b[^>]*\/?>/gi, '')
+        .replace(
+          /<\s*(script|style|iframe|object|embed|meta|link|base|form|input|button|textarea|select)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi,
+          ''
+        )
+        .replace(
+          /<\s*(script|style|iframe|object|embed|meta|link|base|form|input|button|textarea|select)\b[^>]*\/?>/gi,
+          ''
+        )
         .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
         .replace(/(href|src)\s*=\s*(['"])\s*javascript:[^'"]*\2/gi, '$1="#"');
 
@@ -562,6 +637,7 @@ app.whenReady().then(() => {
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src 'none'; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';" />
 <title>${escapeHtml(title || 'Untitled Note')}</title>
 <style>
   @page { margin: 0; }
@@ -652,6 +728,8 @@ app.whenReady().then(() => {
           allowRunningInsecureContent: false,
         },
       });
+      pdfWin.webContents.on('will-navigate', (e) => e.preventDefault());
+      pdfWin.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
       await pdfWin.loadFile(tmpHtmlPath);
       const pdfBuffer = await pdfWin.webContents.printToPDF({
         printBackground: true,
