@@ -40,7 +40,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   onOpenLogs,
   onOpenSettings,
   onToggleFocusMode,
-  onToggleTheme,
   onExportPdf,
 }) => {
   const [query, setQuery] = useState('');
@@ -97,10 +96,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     },
     {
       id: 'act-theme',
-      label: 'Cycle Surface Theme (Dark / Midnight / Light / Sepia)',
-      hint: 'Theme',
+      label: 'Change App Theme & Accent Colors in Settings',
+      hint: '⌘,',
       icon: <Sun size={15} />,
-      run: onToggleTheme,
+      run: onOpenSettings,
     },
     ...(onExportPdf
       ? [

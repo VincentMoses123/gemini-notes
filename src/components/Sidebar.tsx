@@ -5,8 +5,6 @@ import {
   Star,
   Trash2,
   Settings,
-  Sun,
-  Moon,
   RotateCcw,
   Folder,
   LayoutTemplate,
@@ -95,8 +93,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   hasApiKey,
   errorCount,
   knowledgeCount = 0,
-  theme,
-  accentTheme,
   layoutMode,
   onSelectNote,
   onCreateNote,
@@ -110,8 +106,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenLogs,
   onOpenKnowledgeBase,
   onOpenCommandPalette,
-  onToggleTheme,
-  onSelectAccent,
   onToggleLayoutMode,
   onRestoreNote,
   onDeletePermanently,
@@ -344,24 +338,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </div>
   );
 
-  const renderFooterWithSwatches = () => (
+  const renderSidebarFooter = () => (
     <div className="apple-sidebar-footer">
-      <div className="theme-swatch-bar">
-        <span className="swatch-bar-label">ACCENT</span>
-        <div className="swatch-dots">
-          {ACCENT_SWATCHES.map((sw) => (
-            <button
-              key={sw.id}
-              type="button"
-              className={`theme-swatch-dot ${accentTheme === sw.id ? 'active' : ''}`}
-              style={{ backgroundColor: sw.color }}
-              onClick={() => onSelectAccent(sw.id)}
-              title={`Theme: ${sw.label}`}
-            />
-          ))}
-        </div>
-      </div>
-
       <div className="sidebar-footer-actions">
         <button
           className="footer-settings-btn"
@@ -383,13 +361,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <Terminal size={13} />
           <span>Logs</span>
           {errorCount > 0 && <span className="logs-error-badge">{errorCount}</span>}
-        </button>
-        <button
-          className="footer-theme-btn"
-          onClick={onToggleTheme}
-          title={`Theme: ${theme.charAt(0).toUpperCase() + theme.slice(1)} (Click to cycle)`}
-        >
-          {theme === 'light' || theme === 'sepia' ? <Sun size={14} /> : <Moon size={14} />}
         </button>
       </div>
     </div>
@@ -449,7 +420,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {renderSearchBar()}
           <div className="notes-list apple-grouped-scroll">{renderGroupedNoteList()}</div>
-          {renderFooterWithSwatches()}
+          {renderSidebarFooter()}
         </div>
       </aside>
     );
@@ -578,7 +549,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
 
-        {renderFooterWithSwatches()}
+        {renderSidebarFooter()}
       </div>
 
       {/* PANE 2: APPLE NOTES LIST COLUMN */}

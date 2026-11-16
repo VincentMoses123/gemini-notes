@@ -136,6 +136,50 @@ assert(websiteHtml.includes('http-equiv="Content-Security-Policy"'), 'website/in
 assert(!websiteHtml.includes('fonts.googleapis.com'), 'website/index.html must not send visitor requests to third-party font CDNs');
 console.log('✓ Header-only auth, IPC sender verification, settings allowlist, subprocess isolation, storage purge, and website CSP verified.');
 
+// 8. Zero-Text AI Generation & Settings-Only Theme Governance
+console.log('\nTest 8: Zero-Text AI Generation & Settings-Only Theme Governance');
+const editorTsx = fs.readFileSync(path.join(__dirname, '../src/components/Editor.tsx'), 'utf-8');
+assert(
+  !editorTsx.includes('Write a few words or a title first so Gemini has context to work with!'),
+  'src/components/Editor.tsx must allow zero-text AI generation instead of blocking empty notes'
+);
+
+const buildPromptStart = geminiTs.indexOf('export function buildPromptForAction');
+const buildPromptEnd = geminiTs.indexOf('\nexport ', buildPromptStart + 1);
+const buildPromptSection =
+  buildPromptStart >= 0
+    ? geminiTs.slice(buildPromptStart, buildPromptEnd > buildPromptStart ? buildPromptEnd : undefined)
+    : '';
+assert(
+  buildPromptSection.includes('!cleanTarget'),
+  'src/services/gemini.ts buildPromptForAction must handle empty target text (!cleanTarget) for from-scratch generation'
+);
+
+const sidebarTsx = fs.readFileSync(path.join(__dirname, '../src/components/Sidebar.tsx'), 'utf-8');
+assert(
+  !sidebarTsx.includes('theme-swatch-bar'),
+  'src/components/Sidebar.tsx must not render theme-swatch-bar on the main screen'
+);
+assert(
+  !sidebarTsx.includes('footer-theme-btn'),
+  'src/components/Sidebar.tsx must not render footer-theme-btn on the main screen'
+);
+
+const settingsTsx = fs.readFileSync(path.join(__dirname, '../src/components/SettingsModal.tsx'), 'utf-8');
+assert(
+  settingsTsx.includes('APP THEME') || settingsTsx.includes('App Theme'),
+  "src/components/SettingsModal.tsx must contain 'APP THEME' or 'App Theme'"
+);
+assert(
+  settingsTsx.includes('ACCENT COLOR') || settingsTsx.includes('Accent Color'),
+  "src/components/SettingsModal.tsx must contain 'ACCENT COLOR' or 'Accent Color'"
+);
+assert(
+  settingsTsx.includes('THEME_OPTIONS'),
+  "src/components/SettingsModal.tsx must contain 'THEME_OPTIONS'"
+);
+console.log('✓ Zero-text AI generation and settings-only theme governance verified.');
+
 console.log('\n======================================================');
 console.log('ALL SECURITY VERIFICATION CHECKS PASSED SUCCESSFULLY!');
 console.log('======================================================');

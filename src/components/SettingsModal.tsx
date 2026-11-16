@@ -46,11 +46,51 @@ const MODEL_OPTIONS: { value: GeminiModel; label: string }[] = [
   { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
 ];
 
-const THEME_OPTIONS: { id: ThemeMode; label: string; Icon: React.ElementType }[] = [
-  { id: 'dark', label: 'Dark', Icon: Moon },
-  { id: 'midnight', label: 'Midnight', Icon: Sparkles },
-  { id: 'light', label: 'Light', Icon: Sun },
-  { id: 'sepia', label: 'Sepia', Icon: BookOpen },
+const THEME_OPTIONS: {
+  id: ThemeMode;
+  label: string;
+  subtitle: string;
+  previewBg: string;
+  previewCard: string;
+  previewText: string;
+  Icon: React.ElementType;
+}[] = [
+  {
+    id: 'dark',
+    label: 'Dark',
+    subtitle: 'Studio Dark',
+    previewBg: '#141517',
+    previewCard: '#26282e',
+    previewText: '#f3f4f6',
+    Icon: Moon,
+  },
+  {
+    id: 'midnight',
+    label: 'Midnight',
+    subtitle: 'OLED Black',
+    previewBg: '#07090d',
+    previewCard: '#1a202c',
+    previewText: '#f8fafc',
+    Icon: Sparkles,
+  },
+  {
+    id: 'light',
+    label: 'Light',
+    subtitle: 'Daylight Paper',
+    previewBg: '#fbfbfa',
+    previewCard: '#eaecf0',
+    previewText: '#111827',
+    Icon: Sun,
+  },
+  {
+    id: 'sepia',
+    label: 'Sepia',
+    subtitle: 'Warm Parchment',
+    previewBg: '#f6edd7',
+    previewCard: '#e6d8b9',
+    previewText: '#2b2114',
+    Icon: BookOpen,
+  },
 ];
 
 const EXPORT_FORMAT_OPTIONS: { id: ExportFormat; label: string }[] = [
@@ -113,6 +153,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     };
   }, []);
 
+  const persistAppearance = (overrides: Partial<AppSettings>) => {
+    onSave({
+      ...settings,
+      apiKey: apiKey.trim(),
+      model,
+      theme,
+      accentTheme,
+      layoutMode,
+      defaultExportFormat,
+      pdfPageSize,
+      pdfIncludeMetadata,
+      ...overrides,
+    });
+  };
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({
@@ -170,51 +225,77 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <div className="settings-section-card">
             <div className="settings-section-title">
               <Palette size={14} className="accent-icon" />
-              <span>Color Palette & Layout</span>
+              <span>App Theme, Accent Colors & Layout</span>
             </div>
 
-            <div className="palette-grid">
-              {ACCENT_SWATCHES.map((sw) => (
-                <button
-                  key={sw.id}
-                  type="button"
-                  className={`palette-choice-btn ${accentTheme === sw.id ? 'active' : ''}`}
-                  onClick={() => {
-                    setAccentTheme(sw.id);
-                    document.documentElement.setAttribute('data-accent', sw.id);
-                  }}
-                >
-                  <span className="palette-choice-dot" style={{ backgroundColor: sw.color }} />
-                  <span>{sw.label}</span>
-                </button>
-              ))}
+            <div className="settings-subgroup">
+              <span className="settings-sublabel">APP THEME</span>
+              <div className="theme-mode-grid">
+                {THEME_OPTIONS.map(
+                  ({ id, label, subtitle, previewBg, previewCard, previewText, Icon }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      className={`theme-choice-card ${theme === id ? 'active' : ''}`}
+                      onClick={() => {
+                        setTheme(id);
+                        document.documentElement.setAttribute('data-theme', id);
+                        persistAppearance({ theme: id });
+                      }}
+                    >
+                      <div
+                        className="theme-choice-preview"
+                        style={{
+                          backgroundColor: previewBg,
+                          borderColor: previewCard,
+                          color: previewText,
+                        }}
+                      >
+                        <Icon size={14} />
+                      </div>
+                      <div className="theme-choice-text">
+                        <span className="theme-choice-name">{label}</span>
+                        <span className="theme-choice-sub">{subtitle}</span>
+                      </div>
+                    </button>
+                  )
+                )}
+              </div>
             </div>
 
-            <div className="appearance-layout-row">
-              <div className="segmented-toggle-group">
-                {THEME_OPTIONS.map(({ id, label, Icon }) => (
+            <div className="settings-subgroup">
+              <span className="settings-sublabel">ACCENT COLOR</span>
+              <div className="palette-grid">
+                {ACCENT_SWATCHES.map((sw) => (
                   <button
-                    key={id}
+                    key={sw.id}
                     type="button"
-                    className={`segmented-option ${theme === id ? 'active' : ''}`}
+                    className={`palette-choice-btn ${accentTheme === sw.id ? 'active' : ''}`}
                     onClick={() => {
-                      setTheme(id);
-                      document.documentElement.setAttribute('data-theme', id);
+                      setAccentTheme(sw.id);
+                      document.documentElement.setAttribute('data-accent', sw.id);
+                      persistAppearance({ accentTheme: sw.id });
                     }}
                   >
-                    <Icon size={13} />
-                    <span>{label}</span>
+                    <span className="palette-choice-dot" style={{ backgroundColor: sw.color }} />
+                    <span>{sw.label}</span>
                   </button>
                 ))}
               </div>
+            </div>
 
+            <div className="settings-subgroup">
+              <span className="settings-sublabel">WORKSPACE LAYOUT</span>
               <div className="segmented-toggle-group">
                 {LAYOUT_OPTIONS.map(({ id, label, Icon }) => (
                   <button
                     key={id}
                     type="button"
                     className={`segmented-option ${layoutMode === id ? 'active' : ''}`}
-                    onClick={() => setLayoutMode(id)}
+                    onClick={() => {
+                      setLayoutMode(id);
+                      persistAppearance({ layoutMode: id });
+                    }}
                   >
                     {Icon && <Icon size={13} />}
                     <span>{label}</span>

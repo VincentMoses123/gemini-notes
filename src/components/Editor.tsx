@@ -203,6 +203,7 @@ export const Editor: React.FC<EditorProps> = ({
   const editorRef = useRef<HTMLDivElement>(null);
   const lastLoadedNoteId = useRef<string | null>(null);
   const savedRangeRef = useRef<Range | null>(null);
+  const customPromptInputRef = useRef<HTMLInputElement>(null);
 
   const [tagInput, setTagInput] = useState('');
   const [wordStats, setWordStats] = useState({ words: 0, chars: 0 });
@@ -303,6 +304,7 @@ export const Editor: React.FC<EditorProps> = ({
       lastAction: 'custom',
       customPrompt: '',
     });
+    requestAnimationFrame(() => customPromptInputRef.current?.focus());
   };
 
   const handleMouseUpOrKeyUp = () => {
@@ -341,27 +343,15 @@ export const Editor: React.FC<EditorProps> = ({
     hasSelectionFlag?: boolean,
     customInstructionText?: string
   ) => {
-    const plainNoteText = editorRef.current?.innerText?.trim() || '';
-    const target =
-      overrideTargetText ?? (selectionMenu.selectedText || aiPanel.targetText || plainNoteText);
+    const plainNoteText = stripHtmlToText(editorRef.current?.innerHTML || note.content || '').trim();
     const isSelection =
       hasSelectionFlag ?? Boolean(selectionMenu.selectedText || aiPanel.hasSelection);
+    const target = isSelection
+      ? (overrideTargetText ?? (selectionMenu.selectedText || aiPanel.targetText))
+      : ((overrideTargetText && overrideTargetText.trim()) || plainNoteText);
+    const resolvedCustomPrompt = (customInstructionText ?? aiPanel.customPrompt).trim();
 
     setSelectionMenu((prev) => ({ ...prev, visible: false }));
-
-    if (!target.trim()) {
-      setAiPanel({
-        open: true,
-        targetText: note.title || 'New note',
-        hasSelection: false,
-        loading: false,
-        resultMarkdown: '',
-        error: 'Write a few words or a title first so Gemini has context to work with!',
-        lastAction: action,
-        customPrompt: customInstructionText || '',
-      });
-      return;
-    }
 
     setAiPanel({
       open: true,
@@ -378,7 +368,7 @@ export const Editor: React.FC<EditorProps> = ({
       action,
       targetText: target,
       noteTitle: note.title,
-      customInstruction: customInstructionText ?? aiPanel.customPrompt,
+      customInstruction: resolvedCustomPrompt,
       knowledgeDocs,
       settings,
     });
@@ -408,14 +398,14 @@ export const Editor: React.FC<EditorProps> = ({
   };
 
   const slashCommands: SlashCommandItem[] = [
-    ...AI_SLASH_DEFS.map(({ id, label, description, action, Icon, fallbackTitle }) => ({
+    ...AI_SLASH_DEFS.map(({ id, label, description, action, Icon }) => ({
       id,
       label,
       description,
       category: 'ai' as const,
       icon: <Icon size={15} className="accent-icon" />,
       run: () => {
-        const text = editorRef.current?.innerText?.trim() || (fallbackTitle ? note.title : '');
+        const text = stripHtmlToText(editorRef.current?.innerHTML || note.content || '').trim();
         triggerAIAction(action, text, false);
       },
     })),
@@ -427,7 +417,7 @@ export const Editor: React.FC<EditorProps> = ({
       icon: <MessageCircle size={15} className="accent-icon" />,
       run: () =>
         openCustomAiPrompt(
-          editorRef.current?.innerText?.trim() || note.title || 'Brainstorm',
+          stripHtmlToText(editorRef.current?.innerHTML || note.content || '').trim(),
           false
         ),
     },
@@ -583,8 +573,11 @@ export const Editor: React.FC<EditorProps> = ({
         document.execCommand('insertHTML', false, `<br>${html}`);
       }
     } else {
+      const existingPlain = stripHtmlToText(editorRef.current.innerHTML).trim();
       editorRef.current.innerHTML =
-        mode === 'replace' ? html : `${editorRef.current.innerHTML}${html}`;
+        mode === 'replace' || !existingPlain
+          ? html
+          : `${editorRef.current.innerHTML}${html}`;
     }
 
     syncEditorContent();
@@ -649,6 +642,9 @@ export const Editor: React.FC<EditorProps> = ({
   };
 
   const readMinutes = Math.max(1, Math.ceil(wordStats.words / 200));
+  const hasNoteBody = Boolean(
+    stripHtmlToText(editorRef.current?.innerHTML || note.content || '').trim()
+  );
 
   return (
     <main className="editor-container">
@@ -706,8 +702,10 @@ export const Editor: React.FC<EditorProps> = ({
             onClick={() => {
               saveCurrentSelection();
               const selText = window.getSelection()?.toString().trim() || '';
-              const fullText = editorRef.current?.innerText?.trim() || '';
-              openCustomAiPrompt(selText || fullText, Boolean(selText));
+              const plainText = stripHtmlToText(
+                editorRef.current?.innerHTML || note.content || ''
+              ).trim();
+              openCustomAiPrompt(selText || plainText, Boolean(selText));
             }}
           >
             <Sparkles size={13} />
@@ -928,7 +926,9 @@ export const Editor: React.FC<EditorProps> = ({
                   <Sparkles size={15} className="accent-icon" />
                   <span>
                     Gemini Writing Assistant{' '}
-                    <small>({aiPanel.hasSelection ? 'Selected Text' : 'Full Note'})</small>
+                    <small>
+                      ({aiPanel.hasSelection ? 'Selected Text' : hasNoteBody ? 'Full Note' : 'Generate from Scratch'})
+                    </small>
                   </span>
                 </div>
                 <button
@@ -947,7 +947,12 @@ export const Editor: React.FC<EditorProps> = ({
                     className="ai-pill"
                     disabled={aiPanel.loading}
                     onClick={() =>
-                      triggerAIAction(action, aiPanel.targetText, aiPanel.hasSelection, custom)
+                      triggerAIAction(
+                        action,
+                        aiPanel.hasSelection ? aiPanel.targetText : undefined,
+                        aiPanel.hasSelection,
+                        custom
+                      )
                     }
                   >
                     <Icon size={13} />
@@ -963,15 +968,17 @@ export const Editor: React.FC<EditorProps> = ({
                   if (!aiPanel.customPrompt.trim()) return;
                   triggerAIAction(
                     'custom',
-                    aiPanel.targetText,
+                    aiPanel.hasSelection ? aiPanel.targetText : undefined,
                     aiPanel.hasSelection,
                     aiPanel.customPrompt
                   );
                 }}
               >
                 <input
+                  ref={customPromptInputRef}
                   type="text"
-                  placeholder="Ask Gemini anything (e.g. 'Turn this into an email', 'Translate to Spanish', 'Create pros & cons')..."
+                  autoFocus={aiPanel.lastAction === 'custom'}
+                  placeholder="Ask Gemini to write or generate anything (e.g. 'Make a guide on answering phones for work')..."
                   value={aiPanel.customPrompt}
                   onChange={(e) =>
                     setAiPanel((prev) => ({ ...prev, customPrompt: e.target.value }))
@@ -1049,7 +1056,7 @@ export const Editor: React.FC<EditorProps> = ({
                       onClick={() =>
                         triggerAIAction(
                           aiPanel.lastAction,
-                          aiPanel.targetText,
+                          aiPanel.hasSelection ? aiPanel.targetText : undefined,
                           aiPanel.hasSelection,
                           aiPanel.customPrompt
                         )
