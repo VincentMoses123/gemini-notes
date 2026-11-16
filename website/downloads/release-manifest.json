@@ -1,0 +1,19 @@
+{
+  "version": "0.4.0-beta",
+  "channel": "BETA",
+  "generatedAt": "2026-11-16T04:04:18.106Z",
+  "downloads": {
+    "dmg": {
+      "fileName": "Gemini-Notes-v0.4.0-beta-macOS-Universal.dmg",
+      "sizeBytes": 202132774,
+      "sizeLabel": "192.8 MB",
+      "sha256": "c18293d7f2245972c3f1a453ac7959a25e8b083647f39c599fbc2717868e787e"
+    },
+    "zip": {
+      "fileName": "Gemini-Notes-v0.4.0-beta-macOS-Universal.zip",
+      "sizeBytes": 183599746,
+      "sizeLabel": "175.1 MB",
+      "sha256": "6c84157cce5228b23e9390af02add5a7716d4f2bcd6dd6c2df28713fb3ceba1e"
+    }
+  }
+}

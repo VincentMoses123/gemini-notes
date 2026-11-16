@@ -1,11 +1,12 @@
 /**
- * Gemini Notes — Official Landing Website Interactive Controller
+ * Gemini Notes (v0.4.0-beta) — Official Landing Website Controller
  * Powers:
- * 1. Dark / Light Appearance Toggle
- * 2. 5 Studio Accent Theme Switcher (Sapphire, Emerald, Copper, Indigo, Slate)
- * 3. Hero macOS 3-Column / 2-Column Mock Window & Note Switcher
+ * 1. Surface Theme Switcher (Dark, Midnight, Light, Sepia) & Header Toggle
+ * 2. Studio Accent Switcher (Sapphire, Emerald, Copper, Indigo, Slate, Rose, Violet, Coral, Teal)
+ * 3. Hero macOS 3-Column / 2-Column Mock Window & Note Switcher (incl. Zero-Text Blank Draft)
  * 4. Interactive Live Gemini AI Demo Workbench with Streaming Preview
  * 5. Accessible FAQ Accordion
+ * 6. Launch Trailer Modal Player & Download Checksum Copy Helpers
  */
 
 (function () {
@@ -14,19 +15,36 @@
   const rootHtml = document.documentElement;
 
   /* --------------------------------------------------------------------------
-   * 1. Dark / Light Mode Toggle
+   * 1. Surface Theme Toggle & 4-Theme Selector (Dark, Midnight, Light, Sepia)
    * -------------------------------------------------------------------------- */
   const themeToggleBtn = document.getElementById('themeToggleBtn');
-  if (themeToggleBtn) {
-    themeToggleBtn.addEventListener('click', () => {
-      const currentTheme = rootHtml.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
-      const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
-      rootHtml.setAttribute('data-theme', nextTheme);
+  const surfaceThemeButtons = document.querySelectorAll('[data-set-surface]');
+
+  function setSurfaceTheme(themeKey) {
+    rootHtml.setAttribute('data-theme', themeKey);
+    surfaceThemeButtons.forEach((btn) => {
+      const isMatch = btn.getAttribute('data-set-surface') === themeKey;
+      btn.classList.toggle('active', isMatch);
     });
   }
 
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', () => {
+      const current = rootHtml.getAttribute('data-theme') || 'dark';
+      const isLightLike = current === 'light' || current === 'sepia';
+      setSurfaceTheme(isLightLike ? 'dark' : 'light');
+    });
+  }
+
+  surfaceThemeButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const themeKey = btn.getAttribute('data-set-surface');
+      if (themeKey) setSurfaceTheme(themeKey);
+    });
+  });
+
   /* --------------------------------------------------------------------------
-   * 2. Studio Color Palette Switcher (Sapphire, Emerald, Copper, Indigo, Slate)
+   * 2. Studio Color Palette Switcher
    * -------------------------------------------------------------------------- */
   const accentTriggers = document.querySelectorAll('[data-set-accent]');
   function setAccentPalette(accentKey) {
@@ -63,89 +81,90 @@
 
   const MOCK_NOTES = {
     architecture: {
-      date: 'November 1, 2026 at 10:42 AM — 148 words · 1 min read',
+      date: 'November 15, 2026 at 10:42 AM — 148 words · 1 min read',
       title: 'Q4 Systems Architecture & Security Spec',
-      tags: ['📁 Architecture', '#security', '#gemini-2.5'],
+      tags: ['📁 Architecture', '#security', '#gemini-3'],
       originalHtml: `
-        <p>Gemini Notes combines a native <strong>macOS Electron architecture</strong> with strict process sandboxing and direct Google Gemini 2.5 SDK execution.</p>
+        <p>Gemini Notes v0.4.0-beta combines a native <strong>macOS Electron architecture</strong> with CISO-verified sandboxing, local Personal Knowledge Base RAG, and Gemini 3 REST integration.</p>
         <ul>
-          <li><strong>Context Isolation:</strong> Renderer runs with <code>contextIsolation: true</code> and <code>nodeIntegration: false</code>.</li>
-          <li><strong>Hardened Local Vault:</strong> Notes and snapshots are persisted atomically with <code>0o600</code> owner-only permissions.</li>
-          <li><strong>DOM XSS Sanitization:</strong> Every AI response and HTML clipboard payload passes through our custom allowlist sanitizer before insertion.</li>
+          <li><strong>Header-Only API Auth:</strong> All Gemini requests authenticate via <code>x-goog-api-key</code> HTTP headers—never URL query strings.</li>
+          <li><strong>Hardened Local Vault:</strong> Notes, settings, and KB indexes use atomic writes with <code>0o600</code> owner-only permissions inside a <code>0o700</code> directory.</li>
+          <li><strong>Zero-Click Beacon Defense:</strong> Strict CSP disables remote image beacons and Chromium <code>localStorage</code> credential mirroring.</li>
         </ul>
-        <blockquote>Tip: Click any note card in the middle column or trigger a Gemini pill above to test the live workspace!</blockquote>
+        <blockquote>Tip: Click any note card in the middle column or trigger a Gemini pill above to test v0.4.0-beta live!</blockquote>
       `,
       summarize: `
-        <p><strong>✦ Gemini Executive Summary (3 Key Pillars):</strong></p>
+        <p><strong>✦ Gemini 3 Executive Summary:</strong></p>
         <ul>
-          <li><strong>Sandboxed Desktop Runtime:</strong> Context-isolated Electron process with zero Node exposure in the renderer.</li>
-          <li><strong>Owner-Only Local Storage:</strong> Atomic JSON persistence locked down with POSIX <code>0o600</code> permissions.</li>
-          <li><strong>Sanitized AI Rendering:</strong> Deterministic HTML allowlist prevents DOM XSS across all Gemini outputs.</li>
+          <li><strong>Header-Only Transport:</strong> API keys sent solely in <code>x-goog-api-key</code> headers with log redaction.</li>
+          <li><strong>Owner-Only Local Vault:</strong> Atomic <code>0o600</code> JSON files + <code>0o700</code> folder permissions, zero <code>localStorage</code> shadowing.</li>
+          <li><strong>Verified Renderer Isolation:</strong> Sender-checked IPC handlers, beacon-free CSP, and deterministic paste sanitization.</li>
         </ul>
       `,
       actions: `
         <p><strong>✦ Extracted Action Items:</strong></p>
         <ul>
-          <li>☑ Verify <code>contextIsolation: true</code> and preload IPC contract before v2.4 DMG notarization.</li>
-          <li>☑ Audit <code>0o600</code> file mode enforcement on <code>notes.json</code> and <code>settings.json</code>.</li>
-          <li>☑ Run automated XSS regression suite against <code>sanitizeHtml()</code>.</li>
+          <li>☑ Verify Universal macOS (<code>arm64</code> + <code>x86_64</code>) <code>.dmg</code> and <code>.zip</code> SHA-256 installers.</li>
+          <li>☑ Enable Personal Knowledge Base (<code>⌘⇧K</code>) to cite local specs and PDFs inline.</li>
+          <li>☑ Customize Surface Theme &amp; Accent Palette inside <strong>Settings (⌘,)</strong>.</li>
         </ul>
       `,
       polish: `
-        <p><strong>Architectural Overview:</strong> Gemini Notes delivers an enterprise-hardened macOS knowledge workspace by uniting a strictly sandboxed Electron runtime with low-latency Google Gemini 2.5 inference, atomic <code>0o600</code> local persistence, and deterministic DOM sanitization.</p>
+        <p><strong>Architectural Overview:</strong> Gemini Notes v0.4.0-beta delivers a hardened macOS workspace pairing strict Electron IPC isolation, owner-only <code>0o600</code> JSON persistence, and local PDF/document RAG with fast Gemini 3 Flash &amp; Pro inference.</p>
       `
     },
-    design: {
-      date: 'October 31, 2026 at 4:18 PM — 132 words · 1 min read',
-      title: 'Apple Notes Studio Palette Tokens',
-      tags: ['📁 Design System', '#macos', '#themes'],
+    blank: {
+      date: 'November 15, 2026 at 9:58 AM — 0 words · Generate from Scratch',
+      title: 'Untitled Note (Empty Canvas)',
+      tags: ['📁 Work', '#new-in-0.4-beta', '#zero-text-ai'],
       originalHtml: `
-        <p>To eliminate the eye strain of legacy canary-yellow note apps, Gemini Notes introduces <strong>five calibrated studio palettes</strong> across both Dark and Light appearances:</p>
-        <ul>
-          <li><strong>Ocean Sapphire:</strong> Default macOS system blue (<code>#3b82f6</code>) for crisp daily clarity.</li>
-          <li><strong>Emerald Studio:</strong> Botanical forest accent (<code>#10b981</code>) tuned for deep research.</li>
-          <li><strong>Amber Classic &amp; Nordic Indigo:</strong> Warm editorial copper (<code>#d97706</code>) and atmospheric indigo (<code>#6366f1</code>).</li>
-        </ul>
-        <blockquote>Click the palette pills above this window to see the entire interface transform in real time.</blockquote>
+        <p style="color: var(--text-muted); font-style: italic;">(Blank note — zero words typed yet. Click any Gemini action above to draft from scratch without needing existing note text!)</p>
+        <blockquote>New in <strong>v0.4.0-beta</strong>: Ask Gemini anything—even on a completely empty note—to generate structured guides, checklists, pros &amp; cons, or study flashcards.</blockquote>
       `,
       summarize: `
-        <p><strong>✦ Gemini Summary:</strong> Gemini Notes replaces harsh yellow accents with 5 calibrated dark/light studio themes: Ocean Sapphire, Emerald Studio, Amber Classic, Nordic Indigo, and Monochrome Graphite.</p>
+        <p><strong>✦ Generated Guide: Executive Phone Etiquette at Work</strong></p>
+        <ul>
+          <li><strong>Warm Greeting in 3 Rings:</strong> State your name, role/team, and "How may I help you today?" clearly.</li>
+          <li><strong>Active Note-Taking:</strong> Capture the caller's name, urgency, and key request directly into a Gemini Note.</li>
+          <li><strong>Clear Closing Summary:</strong> Confirm exact next steps, owner, and callback timeline before hanging up.</li>
+        </ul>
       `,
       actions: `
-        <p><strong>✦ Design System Checklist:</strong></p>
+        <p><strong>✦ Generated Starter Checklist (From Blank Note):</strong></p>
         <ul>
-          <li>☑ Validate WCAG AA contrast ratios across all 5 palettes in both Dark and Light modes.</li>
-          <li>☑ Sync active selection highlights and AI sparkle badges to <code>var(--accent)</code>.</li>
+          <li>☐ Answer within 3 rings with a calm, steady pace</li>
+          <li>☐ Mute notifications / background noise before unmuting</li>
+          <li>☐ Recap action items aloud before ending the call</li>
         </ul>
       `,
       polish: `
-        <p><strong>Design System Specification:</strong> Engineered for extended cognitive flow, Gemini Notes pairs macOS vibrancy and SF Pro typography with five low-fatigue studio color palettes that adapt seamlessly between dark and daylight environments.</p>
+        <p><strong>Workplace Call Playbook (Drafted from Scratch):</strong> Answer promptly with your name and department, smile subtly to soften vocal tone, ask clarifying questions before transferring, and follow every work call with a brief 2-line recap.</p>
       `
     },
     prompts: {
-      date: 'November 1, 2026 at 9:15 AM — 164 words · 1 min read',
-      title: 'Gemini 2.5 Inline Prompt Workflows',
-      tags: ['📁 AI Research', '#gemini-2.5', '#productivity'],
+      date: 'November 15, 2026 at 9:15 AM — 164 words · 1 min read',
+      title: 'Personal Knowledge Base & PDF Export',
+      tags: ['📁 AI Research', '#knowledge-base', '#pdf'],
       originalHtml: `
-        <p>Writers shouldn't have to copy-paste between browser tabs and their notes. Gemini Notes embeds <strong>14+ precision AI tools</strong> directly inside the editor canvas:</p>
+        <p>Bring your own PDFs, Markdown docs, CSVs, and Word files into Gemini Notes with zero external vector servers:</p>
         <ul>
-          <li><strong>Slash Commands (<code>/</code>):</strong> Type <code>/summarize</code>, <code>/tasks</code>, or <code>/fix</code> without lifting your hands from the keyboard.</li>
-          <li><strong>Floating Bubble Menu:</strong> Highlight any sentence to rewrite, shorten, or translate in place.</li>
-          <li><strong>Chat with All Notes:</strong> Query your entire local note vault with cited note references.</li>
+          <li><strong>Knowledge Base Vault (<code>⌘⇧K</code>):</strong> On-device PDFKit &amp; <code>textutil</code> extraction chunks and scores relevant sections locally.</li>
+          <li><strong>Native PDF Export (<code>⌘⇧E</code>):</strong> Exports clean <code>Letter</code>, <code>A4</code>, or <code>Legal</code> PDFs via an isolated offline renderer.</li>
+          <li><strong>Beta Changelog (<code>⌘,</code>):</strong> Automatic one-time "What's New" summary after every update, plus full release history in Settings.</li>
         </ul>
       `,
       summarize: `
-        <p><strong>✦ Gemini Summary:</strong> Gemini Notes eliminates context-switching via inline Slash Commands (<code>/</code>), a selection-aware Floating Bubble Menu, Auto-Title &amp; Tagging, and vault-wide Chat with All Notes.</p>
+        <p><strong>✦ Gemini 3 Summary:</strong> Gemini Notes v0.4.0-beta unites local Knowledge Base citations (<code>⌘⇧K</code>), offline native PDF export (<code>⌘⇧E</code>), zero-text AI drafting, and Settings-only studio themes.</p>
       `,
       actions: `
-        <p><strong>✦ Workflow Next Steps:</strong></p>
+        <p><strong>✦ Quick Setup Next Steps:</strong></p>
         <ul>
-          <li>☑ Press <code>⌘J</code> to open the inline Gemini bar on any note.</li>
-          <li>☑ Use <strong>Auto-Title &amp; Tag</strong> to organize untitled scratchpad captures automatically.</li>
+          <li>☑ Open <strong>Knowledge Base (⌘⇧K)</strong> and import project PDFs or manuals.</li>
+          <li>☑ Open <strong>Settings (⌘,)</strong> to pick Dark, Midnight, Light, or Sepia + review the Beta Changelog.</li>
         </ul>
       `,
       polish: `
-        <p><strong>Inline Intelligence Workflow:</strong> By unifying keyboard-first Slash Commands, contextual selection toolbars, and vault-wide semantic Q&amp;A, Gemini Notes turns raw thoughts into structured documentation in milliseconds.</p>
+        <p><strong>Local-First Knowledge Workflow:</strong> Gemini Notes keeps reference PDFs and notes strictly on your Mac SSD, surfacing cited excerpts on demand while exporting print-ready PDFs inside an offline sandboxed window.</p>
       `
     }
   };
@@ -195,43 +214,54 @@
    * 4. Interactive Live AI Demo Workbench (#demo)
    * -------------------------------------------------------------------------- */
   const DEMO_PRESETS = {
-    meeting: {
-      source: `Product Sync - Nov 1
-We talked about launching Gemini Notes v2.4 on Friday. Vincent mentioned the 3-column Apple Notes layout and 5 studio color themes are finished and passing TypeScript checks. Security team finished locking down 0o600 file permissions and HTML sanitization. Still need to finalize the DMG installer icon and write release notes by Wednesday 5pm.`,
+    blank: {
+      source: '',
       transforms: {
-        grammar: `Product Sync — November 1\n\nWe aligned on launching Gemini Notes v2.4 this Friday. Vincent confirmed that the 3-column Apple Notes layout and all five studio color palettes are complete and passing TypeScript verification. The security team has also finalized 0o600 file permission hardening and HTML sanitization. Remaining items: finalize the macOS DMG installer icon and publish the release notes by Wednesday at 5:00 PM.`,
-        tasks: `✅ Extracted Action Items:\n• [Done] Complete 3-column Apple Notes UI & 5 studio color palettes (Owner: UI Team)\n• [Done] Enforce 0o600 local vault permissions & DOM HTML sanitizer (Owner: Security Team)\n• [Pending — Due Wed 5:00 PM] Finalize macOS DMG installer icon\n• [Pending — Due Wed 5:00 PM] Draft and review v2.4 Release Notes`,
-        summarize: `📝 Executive TL;DR:\n• Launch Target: Gemini Notes v2.4 is on track for Friday release.\n• Completed Milestones: 3-column macOS UI, 5 non-yellow studio themes, 0o600 storage hardening, and XSS sanitization are verified.\n• Critical Path: DMG icon packaging and release documentation due Wednesday at 5:00 PM.`,
-        concise: `Gemini Notes v2.4 launches Friday. UI (3-column layout, 5 studio themes) and Security (0o600 permissions, HTML sanitizer) are complete. Next: finalize DMG icon and release notes by Wednesday 5 PM.`,
-        translate: `🇪🇸 Español:\nSincronización de Producto (1 de nov): Lanzaremos Gemini Notes v2.4 el viernes. El diseño de 3 columnas, los 5 temas de color y el endurecimiento de seguridad (0o600 y sanitización HTML) están listos. Pendiente: icono DMG y notas de versión antes del miércoles a las 17:00.\n\n🇯🇵 日本語:\n製品同期ミーティング (11月1日): 金曜日に Gemini Notes v2.4 をリリース予定。3カラムUI、5つのスタジオカラーテーマ、セキュリティ強化 (0o600権限・HTMLサニタイズ) は完了。水曜17時までにDMGアイコンとリリースノートを完成させる。`,
-        autotag: `🏷️ Suggested Title:\nGemini Notes v2.4 Launch Readiness & Engineering Sync\n\nSuggested Tags:\n#product-launch  #v2.4-release  #macos-universal  #security-audit`
+        grammar: `Workplace Phone Etiquette Guide (Generated from Scratch)\n\n1. Warm Opening (Within 3 Rings): "Good morning, [Your Name] speaking from [Team], how can I help you today?"\n2. Active Listening & Notes: Repeat key names, dates, and requests back briefly so nothing is misheard.\n3. Confident Transfer or Wrap-Up: Confirm who handles the next step and when the caller can expect a follow-up.`,
+        tasks: `✅ Phone Readiness Checklist (Generated on Blank Note):\n• Answer within 3 rings with a calm, upbeat tone\n• Silence desktop notifications before speaking\n• Log caller name, summary, and follow-up time in Gemini Notes`,
+        summarize: `📝 3-Rule Professional Call Summary:\n• Greet fast & clearly with your name and department.\n• Take structured notes while listening so callers never repeat themselves.\n• Close every call by repeating next steps and deadlines aloud.`,
+        concise: `Answer within 3 rings, open warmly with your name and role, jot key details directly into Gemini Notes, and close by confirming exact next steps.`,
+        translate: `🇪🇸 Español (Guía Telefónica Laboral):\nResponde antes del tercer tono con tu nombre y equipo, toma notas claras mientras escuchas y confirma los próximos pasos antes de colgar.\n\n🇯🇵 日本語 (ビジネス電話対応ガイド):\n3コール以内に出て名乗り、要点をメモしながら傾聴し、最後に次のアクションを復唱して確認しましょう。`,
+        autotag: `🏷️ Suggested Title:\nProfessional Work Phone Etiquette Guide\n\nSuggested Tags:\n#work-guide  #communication  #phone-etiquette`
+      }
+    },
+    meeting: {
+      source: `Product Sync - Nov 15
+We talked about launching Gemini Notes v0.4.0-beta on macOS. Vincent confirmed zero-text AI drafting, Settings-only Dark/Midnight/Light/Sepia themes, and the once-per-update What's New popup are passing security and UI checks. Personal Knowledge Base RAG (Cmd+Shift+K) and native offline PDF export (Cmd+Shift+E) are ready for beta testers on macOS Universal .dmg and .zip.`,
+      transforms: {
+        grammar: `Product Sync — November 15\n\nWe finalized the launch of Gemini Notes v0.4.0-beta for macOS. Vincent confirmed that zero-text AI drafting, Settings-only Dark/Midnight/Light/Sepia themes, and the one-time What's New release modal have passed all security and UI verification checks. Personal Knowledge Base RAG (⌘⇧K) and isolated offline PDF export (⌘⇧E) are packaged cleanly in Universal macOS .dmg and .zip installers.`,
+        tasks: `✅ Extracted Action Items:\n• [Done] Enable zero-text AI drafting from scratch across Ask Gemini & slash commands\n• [Done] Move surface themes & 9 Accent Colors exclusively into Settings (⌘,)\n• [Ready] Publish macOS Universal .dmg & .zip beta installers on the website`,
+        summarize: `📝 Executive TL;DR:\n• Launch Version: Gemini Notes v0.4.0-beta (Universal macOS arm64 + x64).\n• Headline Upgrades: Blank-note AI generation, Settings-only theme studio, once-per-update changelog popup, and Knowledge Base RAG.`,
+        concise: `Gemini Notes v0.4.0-beta is ready for macOS: zero-text AI generation, Settings-only Dark/Midnight/Light/Sepia themes, KB citations, and offline PDF export packaged in Universal .dmg & .zip builds.`,
+        translate: `🇪🇸 Español:\nSincronización de Producto (15 de nov): Gemini Notes v0.4.0-beta está listo para macOS con generación IA desde notas en blanco, temas en Ajustes y descargas universales .dmg y .zip.\n\n🇯🇵 日本語:\n製品同期ミーティング (11月15日): Gemini Notes v0.4.0-beta が完了。白紙ノートからのAI生成、設定専用テーマ、Universal macOS .dmg / .zip インストーラーを公開可能。`,
+        autotag: `🏷️ Suggested Title:\nGemini Notes v0.4.0-beta Release & Installer Sync\n\nSuggested Tags:\n#v0-4-beta  #macos-universal  #security-verified  #knowledge-base`
       }
     },
     draft: {
-      source: `why local first notes matter: cloud apps are slow when wifi drops on flights and they lock your data in proprietary databases. with gemini notes we keep everything in local json files on your mac ssd so search is 0ms instant, plus you only call gemini 2.5 api when you actually want ai help.`,
+      source: `why local first notes matter: cloud apps are slow when wifi drops on flights and they lock your data in proprietary databases. with gemini notes we keep everything in local json files on your mac ssd with 0o600 permissions, plus you only call gemini 3 api via x-goog-api-key header when you actually want ai help.`,
       transforms: {
-        grammar: `Why Local-First Notes Matter\n\nCloud-only note applications lag when Wi-Fi drops in transit and lock your knowledge inside proprietary remote databases. Gemini Notes stores every document locally on your Mac's SSD in human-readable JSON—delivering sub-millisecond search while invoking the Google Gemini 2.5 API strictly when you request AI assistance.`,
-        tasks: `✅ Key Architectural Takeaways:\n• Maintain 100% offline read/write availability via local SSD persistence\n• Guarantee 0ms instant search across local note buffers\n• Invoke Gemini 2.5 network requests strictly on explicit user command`,
-        summarize: `📝 Core Thesis:\n• Zero Latency: Local SSD storage eliminates offline downtime and network lag.\n• Data Ownership: Plain local JSON files prevent vendor lock-in.\n• Intentional AI: Gemini 2.5 is called only on demand, preserving privacy and speed.`,
-        concise: `Cloud note apps suffer from latency and lock-in. Gemini Notes stores data locally on your Mac SSD for instant offline access, calling Gemini 2.5 only when you summon it.`,
-        translate: `🇪🇸 Español:\nPor qué importan las notas locales: Las apps en la nube fallan sin Wi-Fi y encierran tus datos. Gemini Notes guarda todo en tu SSD local para búsquedas instantáneas, invocando a Gemini 2.5 solo cuando lo pides.\n\n🇯🇵 日本語:\nローカルファーストの重要性：クラウド型アプリはオフライン時に遅延しデータを囲い込みます。Gemini NotesはMacのSSD上にJSONで保存するため検索が瞬時に行え、必要な時だけGemini 2.5 APIを呼び出します。`,
-        autotag: `🏷️ Suggested Title:\nThe Case for Local-First Knowledge & On-Demand AI\n\nSuggested Tags:\n#local-first  #privacy  #architecture  #gemini-2.5`
+        grammar: `Why Local-First Notes Matter\n\nCloud-only note applications lag when Wi-Fi drops in transit and lock your knowledge inside proprietary remote databases. Gemini Notes stores every note, tag, and Knowledge Base index locally on your Mac's SSD with strict 0o600 owner-only permissions—delivering instant offline search while calling the Gemini 3 REST API via x-goog-api-key headers strictly on explicit request.`,
+        tasks: `✅ Key Architectural Takeaways:\n• Maintain 100% offline availability via atomic 0o600 local JSON storage\n• Eliminate Chromium localStorage credential mirroring in desktop mode\n• Authenticate Gemini 3 requests strictly with x-goog-api-key headers`,
+        summarize: `📝 Core Thesis:\n• Zero Latency: Local SSD storage guarantees instant search offline.\n• Zero-Trust Hygiene: Owner-only 0o600 files inside a 0o700 folder with no telemetry beacons.`,
+        concise: `Cloud note apps lag and lock in data. Gemini Notes keeps everything local in 0o600 JSON files on your Mac SSD, calling Gemini 3 via x-goog-api-key only when you summon it.`,
+        translate: `🇪🇸 Español:\nPor qué importan las notas locales: Gemini Notes guarda todo en archivos JSON 0o600 en tu Mac y solo llama a Gemini 3 mediante cabecera x-goog-api-key cuando tú lo pides.\n\n🇯🇵 日本語:\nローカルファーストの重要性：Gemini NotesはMacのSSD上に0o600権限で保存し、必要な時だけ x-goog-api-key ヘッダー経由でGemini 3を呼び出します。`,
+        autotag: `🏷️ Suggested Title:\nLocal-First Privacy & Zero-Trust AI Architecture\n\nSuggested Tags:\n#local-first  #privacy  #zero-trust  #gemini-3`
       }
     },
     research: {
-      source: `Tri-agent development pattern: instead of one monolithic prompt, split complex desktop engineering into 3 roles: 1) Head Systems Engineer for orchestration & build verification, 2) Principal UI Engineer for Apple Notes UX & CSS token architecture, 3) Security Engineer for CSP, Electron preload isolation, and sanitizer unit tests.`,
+      source: `Knowledge Base & multi-agent engineering: import local PDFs, Markdown, CSV, or Word docs into Gemini Notes so Ask Gemini and Chat with All Notes cite your real files locally. Built and audited by our specialized systems, UI, QA, and CISO engineering agents.`,
       transforms: {
-        grammar: `The Tri-Agent Systems Engineering Pattern\n\nRather than relying on a single monolithic prompt, complex desktop software benefits from three coordinated engineering specialists:\n1. Head Systems Engineer — Orchestration, architecture governance, and build verification.\n2. Principal UI & Design Systems Engineer — Apple Notes 3-column UX, studio color palettes, and CSS token architecture.\n3. Security & Hardening Engineer — Strict CSP enforcement, Electron preload isolation, and DOM sanitizer verification.`,
-        tasks: `✅ Tri-Agent Verification Matrix:\n• [Head Systems Engineer] Run full TypeScript & Electron Universal packaging checks\n• [Principal UI Engineer] Audit 3-column/2-column layout responsiveness & 5 studio palettes\n• [Security Engineer] Verify CSP headers, 0o600 permissions, and XSS sanitizer coverage`,
-        summarize: `📝 Executive Summary:\n• Dividing engineering across Orchestration, UI Design Systems, and Security Hardening specialists yields cleaner architecture, 25% leaner code, and zero-trust verification.`,
-        concise: `Split desktop engineering across three focused agents—Systems Orchestration, UI Design Systems, and Security Hardening—for faster iteration and rigorous verification.`,
-        translate: `🇪🇸 Español:\nPatrón de ingeniería Tri-Agente: Divide el desarrollo en 1) Ingeniero Jefe de Sistemas, 2) Ingeniero Principal de UI y 3) Ingeniero de Seguridad para lograr máxima calidad en macOS.\n\n🇯🇵 日本語:\nトライエージェント開発パターン：統括システムエンジニア、UIデザインシステムエンジニア、セキュリティエンジニアの3役割に分割することで、高品質なmacOSネイティブアプリを構築。`,
-        autotag: `🏷️ Suggested Title:\nCoordinated Tri-Agent Software Architecture\n\nSuggested Tags:\n#multi-agent  #systems-engineering  #electron  #security`
+        grammar: `Personal Knowledge Base & Multi-Agent Quality\n\nImport local PDFs, Markdown files, CSVs, and Word documents directly into Gemini Notes so both Ask Gemini and Chat with All Notes ground answers in your own reference library with automatic citations. Engineered, audited, and verified end-to-end across specialized backend, UI, QA, and CISO security roles.`,
+        tasks: `✅ Knowledge Base & Verification Matrix:\n• Import PDFs / docs locally via PDFKit & macOS textutil (⌘⇧K)\n• Verify all 8 automated security suites & 8 XSS sanitization vectors\n• Distribute signed Universal macOS .dmg and .zip installers`,
+        summarize: `📝 Executive Summary:\n• Local RAG indexing keeps private docs on-device while enriching Gemini 3 responses with source citations and CISO-verified sandboxing.`,
+        concise: `Import local PDFs and docs into Gemini Notes (⌘⇧K) for grounded citations—backed by CISO-verified sandboxing and 8 security/XSS regression suites.`,
+        translate: `🇪🇸 Español:\nBase de Conocimiento Personal: Importa PDFs y documentos locales (⌘⇧K) para obtener respuestas de Gemini 3 con citas automáticas y seguridad auditada.\n\n🇯🇵 日本語:\nパーソナルナレッジベース：ローカルPDFや文書（⌘⇧K）を取り込み、引用付きでGemini 3が回答。CISO監査済みのサンドボックス設計。`,
+        autotag: `🏷️ Suggested Title:\nLocal RAG Knowledge Base & Security Governance\n\nSuggested Tags:\n#knowledge-base  #rag  #ciso-verified  #electron`
       }
     }
   };
 
-  let currentPresetKey = 'meeting';
+  let currentPresetKey = 'blank';
   let lastGeneratedResult = '';
 
   const demoInputTextarea = document.getElementById('demoInputTextarea');
@@ -257,7 +287,9 @@ We talked about launching Gemini Notes v2.4 on Friday. Vincent mentioned the 3-c
     if (demoLatencyBadge) demoLatencyBadge.textContent = 'Ready • Click any tool on the left';
     if (demoOutputBody) {
       demoOutputBody.innerHTML =
-        'Select any of the <strong>6 Gemini AI tools</strong> on the left to transform this note live.';
+        presetKey === 'blank'
+          ? 'This note buffer is intentionally empty! Click any of the <strong>6 Gemini AI tools</strong> on the left to generate content from scratch.'
+          : 'Select any of the <strong>6 Gemini AI tools</strong> on the left to transform this note live.';
     }
     if (demoOutputActions) demoOutputActions.hidden = true;
   }
@@ -277,7 +309,10 @@ We talked about launching Gemini Notes v2.4 on Friday. Vincent mentioned the 3-c
   }
 
   function buildDynamicFallbackTransform(userText, transformType) {
-    const cleaned = userText.trim() || 'Empty note buffer.';
+    const cleaned = userText.trim();
+    if (!cleaned) {
+      return DEMO_PRESETS.blank.transforms[transformType] || DEMO_PRESETS.blank.transforms.grammar;
+    }
     const words = cleaned.split(/\s+/);
     switch (transformType) {
       case 'grammar':
@@ -293,7 +328,7 @@ We talked about launching Gemini Notes v2.4 on Friday. Vincent mentioned the 3-c
       case 'concise':
         return cleaned.slice(0, Math.max(60, Math.floor(cleaned.length * 0.65))) + '...';
       case 'translate':
-        return `🇪🇸 Español (Preview):\n${cleaned}\n\n🇯🇵 日本語 (Preview):\n[Gemini 2.5 Bilingual Translation Ready]`;
+        return `🇪🇸 Español (Preview):\n${cleaned}\n\n🇯🇵 日本語 (Preview):\n[Gemini 3 Bilingual Translation Ready]`;
       case 'autotag':
         return `🏷️ Suggested Title:\n${words.slice(0, 6).join(' ')}\n\nSuggested Tags:\n#gemini-notes  #captured-note  #workflow`;
       default:
@@ -334,7 +369,7 @@ We talked about launching Gemini Notes v2.4 on Friday. Vincent mentioned the 3-c
         demoOutputTitle.textContent = TRANSFORM_LABELS[transformType] || 'Gemini Output';
       }
       if (demoLatencyBadge) {
-        demoLatencyBadge.textContent = `Streaming... • gemini-2.5-flash`;
+        demoLatencyBadge.textContent = `Streaming... • gemini-3-flash-preview`;
       }
       if (demoOutputActions) demoOutputActions.hidden = true;
 
@@ -349,7 +384,7 @@ We talked about launching Gemini Notes v2.4 on Friday. Vincent mentioned the 3-c
           clearInterval(streamingInterval);
           streamingInterval = null;
           if (demoLatencyBadge) {
-            demoLatencyBadge.textContent = `${simulatedMs}ms • gemini-2.5-flash`;
+            demoLatencyBadge.textContent = `${simulatedMs}ms • gemini-3-flash-preview`;
           }
           if (demoOutputActions) demoOutputActions.hidden = false;
         } else {
@@ -370,8 +405,9 @@ We talked about launching Gemini Notes v2.4 on Friday. Vincent mentioned the 3-c
   if (demoApplyAppendBtn && demoInputTextarea) {
     demoApplyAppendBtn.addEventListener('click', () => {
       if (!lastGeneratedResult) return;
-      demoInputTextarea.value = `${demoInputTextarea.value.trim()}\n\n---\n${lastGeneratedResult}`;
-      if (demoLatencyBadge) demoLatencyBadge.textContent = '✓ Inserted Below Note';
+      const existing = demoInputTextarea.value.trim();
+      demoInputTextarea.value = existing ? `${existing}\n\n---\n${lastGeneratedResult}` : lastGeneratedResult;
+      if (demoLatencyBadge) demoLatencyBadge.textContent = '✓ Inserted into Note';
     });
   }
 
@@ -386,7 +422,6 @@ We talked about launching Gemini Notes v2.4 on Friday. Vincent mentioned the 3-c
 
     questionBtn.addEventListener('click', () => {
       const isExpanded = questionBtn.getAttribute('aria-expanded') === 'true';
-      // Close others for clean accordion UX
       faqItems.forEach((otherItem) => {
         const otherBtn = otherItem.querySelector('.faq-question');
         const otherAns = otherItem.querySelector('.faq-answer');
@@ -445,5 +480,37 @@ We talked about launching Gemini Notes v2.4 on Friday. Vincent mentioned the 3-c
     if (event.key === 'Escape' && trailerModal && !trailerModal.hidden) {
       closeTrailer();
     }
+  });
+
+  /* --------------------------------------------------------------------------
+   * 7. Checksum Copy & Download Status Helpers
+   * -------------------------------------------------------------------------- */
+  const copyShaButtons = document.querySelectorAll('[data-copy-text]');
+  copyShaButtons.forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const value = btn.getAttribute('data-copy-text');
+      if (!value) return;
+      try {
+        await navigator.clipboard.writeText(value);
+        const orig = btn.textContent;
+        btn.textContent = 'Copied SHA-256';
+        setTimeout(() => {
+          btn.textContent = orig || 'Copy SHA-256';
+        }, 1800);
+      } catch {
+        // ignore clipboard permission errors on file://
+      }
+    });
+  });
+
+  const downloadLinks = document.querySelectorAll('[data-download-kind]');
+  const downloadNotice = document.getElementById('downloadStatusNotice');
+  downloadLinks.forEach((link) => {
+    link.addEventListener('click', () => {
+      if (!downloadNotice) return;
+      const kind = link.getAttribute('data-download-kind') || 'macOS installer';
+      downloadNotice.textContent = `Starting download: ${kind} (Gemini Notes v0.4.0-beta Universal)... See install steps below if macOS Gatekeeper asks on first launch.`;
+      downloadNotice.hidden = false;
+    });
   });
 })();

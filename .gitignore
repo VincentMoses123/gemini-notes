@@ -4,6 +4,8 @@ node_modules/
 # Build & Packaged App Outputs
 dist/
 release/
+website/downloads/*.dmg
+website/downloads/*.zip
 
 # Local Environment & Secrets
 .env

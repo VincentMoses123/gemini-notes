@@ -1,6 +1,6 @@
 /* ==========================================================================
    Gemini Notes — Official Landing Website Stylesheet
-   macOS Apple Notes Aesthetic • 5 Studio Palettes • Dark & Light Modes
+   macOS Apple Notes Aesthetic • 4 Surface Themes & 9 Studio Accents
    ========================================================================== */
 
 :root,
@@ -21,6 +21,23 @@
   --shadow-card: 0 14px 34px -12px rgba(0, 0, 0, 0.45);
 }
 
+[data-theme="midnight"] {
+  --bg-page: #05070b;
+  --bg-surface: #0b0e14;
+  --bg-elevated: #121722;
+  --bg-glass: rgba(9, 12, 18, 0.84);
+  --bg-mock-col1: #090b10;
+  --bg-mock-col2: #0e1118;
+  --bg-mock-col3: #07090d;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --border-subtle: rgba(148, 163, 184, 0.09);
+  --border-strong: rgba(148, 163, 184, 0.18);
+  --shadow-window: 0 32px 86px -20px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(148, 163, 184, 0.12);
+  --shadow-card: 0 16px 38px -12px rgba(0, 0, 0, 0.65);
+}
+
 [data-theme="light"] {
   --bg-page: #f5f6f8;
   --bg-surface: #ffffff;
@@ -38,7 +55,24 @@
   --shadow-card: 0 12px 30px -10px rgba(15, 23, 42, 0.08);
 }
 
-/* 5 Curated Non-Yellow Studio Palettes */
+[data-theme="sepia"] {
+  --bg-page: #efe4ca;
+  --bg-surface: #f9f2e1;
+  --bg-elevated: #e8dac0;
+  --bg-glass: rgba(246, 237, 215, 0.88);
+  --bg-mock-col1: #ede2c9;
+  --bg-mock-col2: #faf3e0;
+  --bg-mock-col3: #fdf8eb;
+  --text-primary: #2b2114;
+  --text-secondary: #68553d;
+  --text-muted: #8c775c;
+  --border-subtle: rgba(87, 63, 35, 0.12);
+  --border-strong: rgba(87, 63, 35, 0.22);
+  --shadow-window: 0 28px 70px -18px rgba(66, 48, 24, 0.22), 0 0 0 1px rgba(87, 63, 35, 0.14);
+  --shadow-card: 0 12px 30px -10px rgba(66, 48, 24, 0.12);
+}
+
+/* 9 Curated Non-Yellow Studio Accents */
 :root,
 [data-accent="sapphire"] {
   --accent: #3b82f6;
@@ -73,11 +107,43 @@
 }
 
 [data-accent="slate"] {
-  --accent: #64748b;
-  --accent-hover: #475569;
-  --accent-soft: rgba(100, 116, 139, 0.18);
-  --accent-border: rgba(100, 116, 139, 0.4);
-  --accent-glow: rgba(100, 116, 139, 0.2);
+  --accent: #38bdf8;
+  --accent-hover: #0284c7;
+  --accent-soft: rgba(56, 189, 248, 0.16);
+  --accent-border: rgba(56, 189, 248, 0.38);
+  --accent-glow: rgba(56, 189, 248, 0.22);
+}
+
+[data-accent="rose"] {
+  --accent: #f43f5e;
+  --accent-hover: #e11d48;
+  --accent-soft: rgba(244, 63, 94, 0.16);
+  --accent-border: rgba(244, 63, 94, 0.38);
+  --accent-glow: rgba(244, 63, 94, 0.22);
+}
+
+[data-accent="violet"] {
+  --accent: #a855f7;
+  --accent-hover: #9333ea;
+  --accent-soft: rgba(168, 85, 247, 0.16);
+  --accent-border: rgba(168, 85, 247, 0.38);
+  --accent-glow: rgba(168, 85, 247, 0.22);
+}
+
+[data-accent="coral"] {
+  --accent: #fb7185;
+  --accent-hover: #f43f5e;
+  --accent-soft: rgba(251, 113, 133, 0.16);
+  --accent-border: rgba(251, 113, 133, 0.38);
+  --accent-glow: rgba(251, 113, 133, 0.22);
+}
+
+[data-accent="teal"] {
+  --accent: #14b8a6;
+  --accent-hover: #0d9488;
+  --accent-soft: rgba(20, 184, 166, 0.16);
+  --accent-border: rgba(20, 184, 166, 0.38);
+  --accent-glow: rgba(20, 184, 166, 0.22);
 }
 
 /* Base Reset & Typography */
@@ -91,6 +157,7 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
@@ -245,11 +312,13 @@ button {
   border-color: var(--border-strong);
 }
 
-[data-theme="dark"] .icon-moon {
+[data-theme="dark"] .icon-moon,
+[data-theme="midnight"] .icon-moon {
   display: none;
 }
 
-[data-theme="light"] .icon-sun {
+[data-theme="light"] .icon-sun,
+[data-theme="sepia"] .icon-sun {
   display: none;
 }
 
@@ -1328,17 +1397,186 @@ button {
   color: var(--text-secondary);
 }
 
-/* Download Callout Card */
+.hero-subtitle-sub {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: -14px;
+  margin-bottom: 24px;
+}
+
+.mock-sidebar-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px 6px;
+}
+
+.mock-sidebar-brand {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.mock-beta-badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 1px 6px;
+  border-radius: 99px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+}
+
+/* Interactive Surface Theme Selector inside #themes */
+.surface-theme-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.surface-theme-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  padding: 14px 16px;
+  border-radius: 13px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  transition: all 0.2s ease;
+}
+
+.surface-theme-card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.surface-theme-card.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.surface-preview-chip {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: 2px solid var(--border-strong);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.surface-theme-info strong {
+  display: block;
+  font-size: 0.9rem;
+}
+
+.surface-theme-info span {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}
+
+/* Changelog Timeline Section */
+.changelog-timeline {
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.changelog-entry-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 24px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: var(--shadow-card);
+}
+
+.changelog-entry-card.latest {
+  border-color: var(--accent-border);
+}
+
+.changelog-entry-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.changelog-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.changelog-version-pill {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 7px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+}
+
+.changelog-date {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.changelog-entry-card h3 {
+  font-size: 1.08rem;
+  font-weight: 700;
+}
+
+.changelog-summary {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.changelog-points {
+  list-style: disc;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+}
+
+.changelog-points strong {
+  color: var(--text-primary);
+}
+
+/* Upgraded Direct Installer Download Grid */
 .download-card {
   background: var(--bg-surface);
   border: 1px solid var(--accent-border);
   border-radius: 20px;
   padding: 38px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  box-shadow: var(--shadow-window);
+}
+
+.download-top-grid {
   display: grid;
   grid-template-columns: 1.15fr 0.85fr;
   gap: 28px;
   align-items: center;
-  box-shadow: var(--shadow-window);
 }
 
 .download-content h2 {
@@ -1349,20 +1587,169 @@ button {
 
 .download-content p {
   color: var(--text-secondary);
-  margin-bottom: 22px;
+  margin-bottom: 18px;
 }
 
-.download-buttons {
+.installer-options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.installer-card {
+  background: var(--bg-page);
+  border: 1px solid var(--border-strong);
+  border-radius: 15px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.installer-card.recommended {
+  border-color: var(--accent);
+  background: linear-gradient(180deg, var(--accent-soft) 0%, var(--bg-page) 65%);
+}
+
+.installer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.installer-header h3 {
+  font-size: 1.02rem;
+  font-weight: 700;
+}
+
+.installer-tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: var(--accent);
+  color: #fff;
+}
+
+.installer-tag.secondary {
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.installer-desc {
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+}
+
+.installer-meta-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 8px;
+  font-size: 0.76rem;
+  color: var(--text-muted);
 }
+
+.checksum-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.checksum-row code {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copy-sha-btn {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--accent);
+  padding: 3px 7px;
+  border-radius: 5px;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-soft);
+}
+
+.copy-sha-btn:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.download-status-notice {
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-weight: 500;
+}
+
+.install-steps-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  padding: 18px 20px;
+}
+
+.install-steps-card h4 {
+  font-size: 0.92rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.install-steps-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  list-style: none;
+}
+
+.install-steps-list li {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.install-steps-list li strong {
+  display: block;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+/* (Responsive rules consolidated below footer) */
 
 .download-terminal {
   background: #0b0c0f;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 12px;
   overflow: hidden;
+  min-width: 0;
+}
+
+.btn-label-stack small {
+  word-break: break-word;
 }
 
 .terminal-header {
@@ -1451,11 +1838,14 @@ button {
   }
   .demo-workbench,
   .tri-agent-banner,
-  .download-card {
+  .download-top-grid,
+  .installer-options-grid,
+  .install-steps-list {
     grid-template-columns: 1fr;
   }
   .feature-grid,
-  .security-grid {
+  .security-grid,
+  .surface-theme-strip {
     grid-template-columns: repeat(2, 1fr);
   }
   .theme-cards-grid {
@@ -1467,6 +1857,14 @@ button {
   .nav-links {
     display: none;
   }
+  .macos-titlebar {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 10px 12px;
+  }
+  .macos-toolbar-center {
+    flex-wrap: wrap;
+  }
   .macos-app-body {
     grid-template-columns: 1fr;
   }
@@ -1474,8 +1872,25 @@ button {
     border-right: none;
     border-bottom: 1px solid var(--border-subtle);
   }
+  .mock-col-editor {
+    padding: 18px 16px;
+  }
+  .demo-workbench {
+    padding: 14px;
+  }
+  .demo-canvas-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .download-card {
+    padding: 20px;
+  }
+  .checksum-row {
+    flex-wrap: wrap;
+  }
   .feature-grid,
   .security-grid,
+  .surface-theme-strip,
   .theme-cards-grid,
   .tri-agent-nodes {
     grid-template-columns: 1fr;

@@ -14,6 +14,7 @@
     "package:mac:arm64": "npm run build && node scripts/package-mac.cjs --arch=arm64",
     "package:mac:x64": "npm run build && node scripts/package-mac.cjs --arch=x64",
     "package:mac:universal": "npm run build && node scripts/package-mac.cjs --arch=universal",
+    "package:downloads": "node scripts/package-website-downloads.cjs",
     "preview:website": "vite website --port 4173"
   },
   "dependencies": {
