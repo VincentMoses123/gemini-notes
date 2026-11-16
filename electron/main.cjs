@@ -369,6 +369,9 @@ function sanitizeSettingsForSave(raw = {}) {
             .map((f) => f.trim().slice(0, 80)),
         }
       : {}),
+    ...(typeof data.lastSeenVersion === 'string' && data.lastSeenVersion.trim()
+      ? { lastSeenVersion: data.lastSeenVersion.trim().slice(0, 40) }
+      : {}),
   };
 }
 
@@ -390,6 +393,9 @@ function buildSettingsPayload(saved = {}) {
     pdfIncludeMetadata:
       data.pdfIncludeMetadata !== undefined ? Boolean(data.pdfIncludeMetadata) : true,
     ...(data.folders !== undefined ? { folders: data.folders } : {}),
+    ...(typeof data.lastSeenVersion === 'string' && data.lastSeenVersion.trim()
+      ? { lastSeenVersion: data.lastSeenVersion.trim().slice(0, 40) }
+      : {}),
     storagePath: getStorageDir(),
     arch: process.arch,
     platform: process.platform,

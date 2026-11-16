@@ -206,6 +206,10 @@ function normalizeSettings(raw?: Partial<AppSettings> | null): AppSettings {
     pdfIncludeMetadata:
       raw.pdfIncludeMetadata !== undefined ? raw.pdfIncludeMetadata : true,
     folders,
+    lastSeenVersion:
+      typeof raw.lastSeenVersion === 'string' && raw.lastSeenVersion.trim()
+        ? raw.lastSeenVersion.trim()
+        : undefined,
   };
 }
 

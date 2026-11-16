@@ -180,6 +180,35 @@ assert(
 );
 console.log('✓ Zero-text AI generation and settings-only theme governance verified.');
 
+const pkgJson = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json'), 'utf-8'));
+assert.strictEqual(
+  pkgJson.version,
+  '0.4.0-beta',
+  "package.json version must be '0.4.0-beta'"
+);
+
+const settingsStart = mainCjs.indexOf('function sanitizeSettingsForSave(');
+const settingsEnd = mainCjs.indexOf('function getAppIconPath(');
+const settingsHandlingSection =
+  settingsStart >= 0 && settingsEnd > settingsStart
+    ? mainCjs.slice(settingsStart, settingsEnd)
+    : mainCjs;
+assert(
+  settingsHandlingSection.includes('lastSeenVersion'),
+  "electron/main.cjs must include 'lastSeenVersion' in settings handling"
+);
+
+const changelogTs = fs.readFileSync(path.join(__dirname, '../src/services/changelog.ts'), 'utf-8');
+assert(
+  changelogTs.includes("CURRENT_APP_VERSION = '0.4.0-beta'"),
+  "src/services/changelog.ts must define CURRENT_APP_VERSION = '0.4.0-beta'"
+);
+assert(
+  changelogTs.includes('APP_CHANGELOG'),
+  'src/services/changelog.ts must define APP_CHANGELOG'
+);
+console.log('✓ Beta version 0.4.0-beta, lastSeenVersion settings handling, and changelog verified.');
+
 console.log('\n======================================================');
 console.log('ALL SECURITY VERIFICATION CHECKS PASSED SUCCESSFULLY!');
 console.log('======================================================');

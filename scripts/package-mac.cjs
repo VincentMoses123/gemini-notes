@@ -111,6 +111,18 @@ async function getElectronTemplateApp(arch, electronVersion, checksums) {
 
 function updateInfoPlist(appBundlePath) {
   const infoPlistPath = path.join(appBundlePath, 'Contents', 'Info.plist');
+  const pkgPath = path.join(rootDir, 'package.json');
+  let appVersion = '0.4.0-beta';
+  try {
+    if (fs.existsSync(pkgPath)) {
+      const parsed = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+      if (typeof parsed.version === 'string' && parsed.version.trim()) {
+        appVersion = parsed.version.trim();
+      }
+    }
+  } catch {
+    appVersion = '0.4.0-beta';
+  }
   try {
     execFileSync('plutil', [
       '-replace',
@@ -131,6 +143,20 @@ function updateInfoPlist(appBundlePath) {
       'CFBundleIdentifier',
       '-string',
       'com.gemininotes.app',
+      infoPlistPath,
+    ]);
+    execFileSync('plutil', [
+      '-replace',
+      'CFBundleShortVersionString',
+      '-string',
+      appVersion,
+      infoPlistPath,
+    ]);
+    execFileSync('plutil', [
+      '-replace',
+      'CFBundleVersion',
+      '-string',
+      appVersion,
       infoPlistPath,
     ]);
     execFileSync('plutil', [

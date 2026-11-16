@@ -16,6 +16,7 @@ import {
   BookOpen,
   FileDown,
   Cpu,
+  History,
 } from 'lucide-react';
 import {
   AccentTheme,
@@ -28,12 +29,14 @@ import {
   ThemeMode,
 } from '../types';
 import { runGeminiAction } from '../services/gemini';
+import { APP_CHANGELOG, CURRENT_APP_VERSION } from '../services/changelog';
 import { ACCENT_SWATCHES } from './Sidebar';
 
 interface SettingsModalProps {
   settings: AppSettings;
   activeNoteTitle?: string;
   onExportActiveNotePdf?: (overrideSettings?: AppSettings) => void;
+  onOpenWhatsNew?: () => void;
   onSave: (newSettings: AppSettings) => void;
   onClose: () => void;
 }
@@ -117,6 +120,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   settings,
   activeNoteTitle,
   onExportActiveNotePdf,
+  onOpenWhatsNew,
   onSave,
   onClose,
 }) => {
@@ -215,6 +219,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <div className="modal-title-group">
             <Sparkles size={17} className="accent-icon" />
             <h3>Gemini AI & Appearance Settings</h3>
+            <span className="beta-badge-pill">v{CURRENT_APP_VERSION} • BETA</span>
           </div>
           <button className="icon-btn" onClick={onClose}>
             <X size={18} />
@@ -475,6 +480,49 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <span>Show in Finder</span>
               </button>
             )}
+          </div>
+
+          <div className="settings-section-card">
+            <div className="changelog-header-bar">
+              <div className="settings-section-title">
+                <History size={14} className="accent-icon" />
+                <span>Beta Changelog &amp; Release Notes</span>
+              </div>
+              {onOpenWhatsNew && (
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={onOpenWhatsNew}
+                >
+                  Show &quot;What&apos;s New&quot; Popup
+                </button>
+              )}
+            </div>
+
+            <div className="changelog-list">
+              {APP_CHANGELOG.map((rel, idx) => (
+                <div key={rel.version} className="changelog-release-card">
+                  <div className="changelog-release-header">
+                    <div className="changelog-release-title-group">
+                      <span className="whats-new-version-pill">v{rel.version}</span>
+                      <span className="beta-badge-pill">
+                        {idx === 0 ? 'LATEST BETA' : rel.channel}
+                      </span>
+                    </div>
+                    <span className="whats-new-date">{rel.date}</span>
+                  </div>
+                  <strong>{rel.title}</strong>
+                  <p>{rel.summary}</p>
+                  <ul className="changelog-highlights">
+                    {rel.highlights.map((h) => (
+                      <li key={h.title}>
+                        <strong>{h.title}:</strong> {h.description}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="modal-footer">

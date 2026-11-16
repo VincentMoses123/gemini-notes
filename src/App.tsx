@@ -14,6 +14,7 @@ import {
 import { initLogger, logEvent, subscribeToLogs } from './services/logger';
 import { markdownToHtml } from './services/gemini';
 import { sanitizeHtml } from './services/sanitizer';
+import { CURRENT_APP_VERSION, getLatestRelease } from './services/changelog';
 import { FilterView, Sidebar } from './components/Sidebar';
 import { Editor } from './components/Editor';
 import { SettingsModal } from './components/SettingsModal';
@@ -22,6 +23,7 @@ import { TemplatesModal } from './components/TemplatesModal';
 import { LogsModal } from './components/LogsModal';
 import { CommandPalette } from './components/CommandPalette';
 import { KnowledgeBaseModal } from './components/KnowledgeBaseModal';
+import { WhatsNewModal } from './components/WhatsNewModal';
 
 export const App: React.FC = () => {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -33,6 +35,7 @@ export const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [kbOpen, setKbOpen] = useState(false);
   const [logsOpen, setLogsOpen] = useState(false);
@@ -53,7 +56,17 @@ export const App: React.FC = () => {
         initLogger(),
       ]);
       setNotes(loadedNotes);
-      setSettings(loadedSettings);
+      if (loadedSettings.lastSeenVersion !== CURRENT_APP_VERSION) {
+        const updatedSettings: AppSettings = {
+          ...loadedSettings,
+          lastSeenVersion: CURRENT_APP_VERSION,
+        };
+        setSettings(updatedSettings);
+        saveSettingsToStorage(updatedSettings);
+        setWhatsNewOpen(true);
+      } else {
+        setSettings(loadedSettings);
+      }
       setKnowledgeDocs(loadedDocs);
       const firstActive = loadedNotes.find((n) => !n.trashed);
       if (firstActive) {
@@ -491,8 +504,23 @@ export const App: React.FC = () => {
           settings={settings}
           activeNoteTitle={activeNote?.title}
           onExportActiveNotePdf={(updated) => handleExportNotePdf(updated)}
+          onOpenWhatsNew={() => {
+            setSettingsOpen(false);
+            setWhatsNewOpen(true);
+          }}
           onSave={handleSaveSettings}
           onClose={() => setSettingsOpen(false)}
+        />
+      )}
+
+      {whatsNewOpen && (
+        <WhatsNewModal
+          release={getLatestRelease()}
+          onClose={() => setWhatsNewOpen(false)}
+          onOpenChangelogInSettings={() => {
+            setWhatsNewOpen(false);
+            setSettingsOpen(true);
+          }}
         />
       )}
     </div>

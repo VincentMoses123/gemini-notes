@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { AccentTheme, LayoutMode, Note, ThemeMode } from '../types';
 import { formatShortNoteTime, getNoteDateBucket, stripHtmlToText } from '../services/storage';
+import { CURRENT_APP_VERSION } from '../services/changelog';
 
 export type FilterView = 'all' | 'pinned' | 'trash';
 
@@ -431,7 +432,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* PANE 1: FOLDERS & SMART VIEWS */}
       <div className="apple-folders-pane">
         <div className="folders-pane-header">
-          <span className="folders-pane-brand">Notes</span>
+          <div className="folders-pane-brand-wrap">
+            <span className="folders-pane-brand">Notes</span>
+            <span
+              className="beta-badge-pill"
+              title={`Gemini Notes v${CURRENT_APP_VERSION} (Beta)`}
+            >
+              BETA
+            </span>
+          </div>
           <button
             type="button"
             className="icon-mini-btn no-drag"

@@ -69,6 +69,7 @@ export interface AppSettings {
   folders?: string[];
   arch?: string;
   platform?: string;
+  lastSeenVersion?: string;
 }
 
 export type AIActionType =
@@ -151,6 +152,20 @@ export interface ErrorCodeDefinition {
   severity: LogLevel;
   cause: string;
   resolution: string;
+}
+
+export interface ChangelogHighlight {
+  title: string;
+  description: string;
+}
+
+export interface ChangelogRelease {
+  version: string;
+  channel: 'BETA';
+  date: string;
+  title: string;
+  summary: string;
+  highlights: ChangelogHighlight[];
 }
 
 export interface ElectronAPI {
